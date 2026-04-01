@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Permissions-Policy"
+        content="accelerometer=(), gyroscope=(), magnetometer=(), camera=(), microphone=(), geolocation=()">
+    <title>Qwen Canvas Workbench</title>
+    <link rel="stylesheet" href="styles/popup.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- 顶部导航栏 -->
+        <header class="top-bar">
+            <div class="logo">
+                <img class="logo-icon" src="icons/logo.png" alt="Logo" width="28" height="28">
+                <span class="logo-text">cloude彩云间</span>
+            </div>
+            <nav class="mode-tabs">
+                <button class="mode-tab active" data-mode="home">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                    主页
+                </button>
+                <button class="mode-tab" data-mode="sketch">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                        <path d="M2 2l7.586 7.586" />
+                        <circle cx="11" cy="11" r="2" />
+                    </svg>
+                    线稿绘制
+                </button>
+                <button class="mode-tab" data-mode="style">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    风格迁移
+                </button>
+                <button class="mode-tab" data-mode="mask">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    局部修改
+                </button>
+            </nav>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 左侧控制面板（其他模式使用） -->
+            <aside class="control-panel" id="control-panel">
+                <!-- 线稿绘制模式控制面板 -->
+                <div class="control-mode" id="control-sketch">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                            </svg>
+                            <span>线稿绘制</span>
+                        </div>
+                        <p class="section-desc">绘制线稿草图，AI将根据线稿生成完整图像</p>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header collapsible-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="3" />
+                                <path
+                                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            </svg>
+                            <span>绘制设置</span>
+                            <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </div>
+                        <div class="collapsible-content">
+                            <div class="param-grid">
+                                <div class="param-item">
+                                    <label>画笔颜色</label>
+                                    <input type="color" id="sketch-color-panel" value="#000000" class="color-picker">
+                                </div>
+                                <div class="param-item">
+                                    <label>画笔粗细</label>
+                                    <input type="range" id="sketch-size-panel" min="1" max="20" value="3"
+                                        class="size-slider">
+                                    <span class="size-value">3</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                            <span>参考图片</span>
+                            <span class="badge">可选</span>
+                        </div>
+                        <div class="image-gallery" id="sketch-image-gallery-panel">
+                            <div class="gallery-item gallery-add" id="sketch-add-image-btn-panel" title="添加参考图片">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19" />
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                </svg>
+                            </div>
+                            <input type="file" id="sketch-multi-image-input-panel" accept="image/*" multiple hidden>
+                        </div>
+                        <p class="multi-image-hint">上传参考图片辅助生成</p>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            <span>提示词</span>
+                        </div>
+                        <textarea id="sketch-prompt-panel" class="prompt-textarea" placeholder="描述你想要的图像效果..."
+                            rows="3"></textarea>
+                        <div class="prompt-actions">
+                            <button id="sketch-generate-panel" class="btn-generate">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M22 2L11 13" />
+                                    <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                                </svg>
+                                <span>生成图像</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 风格迁移模式控制面板 -->
+                <div class="control-mode" id="control-style">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                            <span>风格迁移</span>
+                        </div>
+                        <p class="section-desc">上传参考图片，AI将学习其风格并应用到新图像</p>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            <span>提示词</span>
+                        </div>
+                        <textarea id="style-prompt-panel" class="prompt-textarea" placeholder="描述你想要的图像内容..."
+                            rows="3"></textarea>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="3" />
+                                <path
+                                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            </svg>
+                            <span>生成设置</span>
+                        </div>
+                        <div class="param-grid">
+                            <div class="param-item">
+                                <label>图片尺寸</label>
+                                <select id="style-image-size-panel" class="param-select">
+                                    <option value="1024*1024">1024 × 1024</option>
+                                    <option value="1024*768">1024 × 768</option>
+                                    <option value="768*1024">768 × 1024</option>
+                                </select>
+                            </div>
+                            <div class="param-item">
+                                <label>风格强度</label>
+                                <select id="style-strength-panel" class="param-select">
+                                    <option value="0.7">中等</option>
+                                    <option value="0.9">强</option>
+                                    <option value="0.5">弱</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="prompt-actions" style="margin-top: 12px;">
+                            <button id="style-generate-panel" class="btn-generate">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M22 2L11 13" />
+                                    <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                                </svg>
+                                <span>生成图像</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 局部修改模式控制面板 -->
+                <div class="control-mode" id="control-mask">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            <span>局部修改</span>
+                        </div>
+                        <p class="section-desc">上传底图，涂抹需要修改的区域，AI将智能替换</p>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                            </svg>
+                            <span>涂抹设置</span>
+                        </div>
+                        <div class="param-item" style="margin-bottom: 12px;">
+                            <label>笔刷大小</label>
+                            <input type="range" id="mask-size-panel" min="5" max="50" value="20" class="size-slider">
+                            <span class="size-value">20</span>
+                        </div>
+                        <button id="mask-clear-panel" class="btn-secondary" style="width: 100%;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                            </svg>
+                            <span>清除涂抹</span>
+                        </button>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            <span>修改描述</span>
+                        </div>
+                        <textarea id="mask-prompt-panel" class="prompt-textarea"
+                            placeholder="描述如何将参考素材融合到涂抹区域，例如：将logo自然融入墙面，保持光影一致..."
+                            rows="3">将参考素材自然融合到涂抹区域，保持光影和风格一致</textarea>
+                        <div class="prompt-actions">
+                            <button id="mask-generate-panel" class="btn-generate">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M22 2L11 13" />
+                                    <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                                </svg>
+                                <span>开始融合</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 左侧：主页模式 -->
+            <div class="workspace-mode active" id="mode-home">
+                <div class="home-container">
+                    <!-- 问候语 -->
+                    <div class="home-greeting">
+                        <h1>你好，我是彩云间</h1>
+                        <p>描述你想要的图片，我来为你生成</p>
+                    </div>
+
+                    <!-- 主输入框 -->
+                    <div class="home-input-wrapper">
+                        <div class="home-input-container">
+                            <textarea id="home-prompt" class="home-input" placeholder="描述你想要生成的图片..."
+                                rows="1"></textarea>
+                            <button id="home-generate-btn" class="home-send-btn-inline" title="生成图片">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M22 2L11 13" />
+                                    <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 快捷功能按钮 -->
+                    <div class="home-quick-actions">
+                        <button class="home-quick-btn" data-mode="sketch">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                            </svg>
+                            <span>线稿绘制</span>
+                        </button>
+                        <button class="home-quick-btn" data-mode="style">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                            <span>风格迁移</span>
+                        </button>
+                        <button class="home-quick-btn" data-mode="mask">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            <span>局部修改</span>
+                        </button>
+                    </div>
+
+                    <!-- 状态显示 -->
+                    <div id="home-status" class="home-status">就绪</div>
+                </div>
+            </div>
+
+            <!-- 左侧拖拽手柄（左栏和中间栏之间） -->
+            <div class="resize-handle resize-handle-left" id="resize-left" data-resize="left"></div>
+
+            <!-- 中间栏：首页高级设置面板 -->
+            <div class="control-panel control-panel-home" id="control-home">
+                <div class="section-card">
+                    <div class="section-header">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="3" />
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
+                        <span>高级设置</span>
+                    </div>
+                </div>
+
+                <!-- API 设置 -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+                        </svg>
+                        <span>API 设置</span>
+                    </div>
+                    <div class="api-input-group">
+                        <input type="password" id="home-api-key" placeholder="输入阿里云百炼 API Key" class="api-input">
+                        <button id="home-save-api-key" class="btn-icon" title="保存">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                                <polyline points="17 21 17 13 7 13 7 21" />
+                                <polyline points="7 3 7 8 15 8" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 提示词输入 -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                        <span>详细提示词</span>
+                    </div>
+                    <textarea id="home-main-prompt" class="prompt-textarea" placeholder="详细描述你想要的图片效果..."
+                        rows="3"></textarea>
+                </div>
+
+                <!-- 负面提示词 -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="15" y1="9" x2="9" y2="15" />
+                            <line x1="9" y1="9" x2="15" y2="15" />
+                        </svg>
+                        <span>负面提示词</span>
+                    </div>
+                    <textarea id="home-negative-prompt" class="prompt-textarea small"
+                        placeholder="不想出现的内容，如：模糊、低质量、变形..." rows="2"></textarea>
+                </div>
+
+                <!-- 生成参数 -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="3" />
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
+                        <span>生成参数</span>
+                    </div>
+                    <div class="param-grid">
+                        <div class="param-item">
+                            <label>图片尺寸</label>
+                            <select id="home-image-size" class="param-select">
+                                <option value="1024*1024">1024 × 1024 (方形)</option>
+                                <option value="1024*768">1024 × 768 (横向)</option>
+                                <option value="768*1024">768 × 1024 (纵向)</option>
+                                <option value="512*512">512 × 512 (小图)</option>
+                            </select>
+                        </div>
+                        <div class="param-item">
+                            <label>图片质量</label>
+                            <select id="home-image-quality" class="param-select">
+                                <option value="high">高清 (推荐)</option>
+                                <option value="standard">标准</option>
+                                <option value="fast">快速</option>
+                            </select>
+                        </div>
+                        <div class="param-item">
+                            <label>生成数量</label>
+                            <select id="home-image-count" class="param-select">
+                                <option value="1">1 张</option>
+                                <option value="2">2 张</option>
+                                <option value="4">4 张</option>
+                            </select>
+                        </div>
+                        <div class="param-item">
+                            <label>提示词扩写</label>
+                            <label class="toggle">
+                                <input type="checkbox" id="home-prompt-extend" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 参考图片上传 -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        <span>参考图片</span>
+                        <span class="badge">可选</span>
+                    </div>
+                    <div class="image-gallery" id="home-image-gallery">
+                        <div class="gallery-item gallery-add" id="home-add-image-btn" title="添加参考图片">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                        </div>
+                        <input type="file" id="home-multi-image-input" accept="image/*" multiple hidden>
+                    </div>
+                    <p class="multi-image-hint">上传参考图片辅助生成</p>
+                </div>
+            </div>
+
+            <!-- 右侧拖拽手柄（中间栏和右栏之间） -->
+            <div class="resize-handle resize-handle-right" id="resize-right" data-resize="right"></div>
+
+            <!-- 中间工作区（其他模式） -->
+            <section class="workspace">
+                <!-- 线稿绘制模式 -->
+                <div class="workspace-mode active" id="mode-sketch">
+                    <div class="canvas-toolbar">
+                        <div class="tool-group">
+                            <button class="tool-btn active" data-tool="brush" title="画笔">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                                </svg>
+                            </button>
+                            <button class="tool-btn" data-tool="eraser" title="橡皮擦">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z" />
+                                    <path d="M17 17L7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="tool-divider"></div>
+                        <div class="tool-group">
+                            <label>颜色</label>
+                            <input type="color" id="sketch-color" value="#000000" class="color-picker">
+                        </div>
+                        <div class="tool-divider"></div>
+                        <div class="tool-group">
+                            <label>粗细</label>
+                            <input type="range" id="sketch-size" min="1" max="20" value="3" class="size-slider">
+                            <span class="size-value">3</span>
+                        </div>
+                        <div class="tool-divider"></div>
+                        <button class="tool-btn" id="sketch-clear" title="清空画布">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="canvas-wrapper">
+                        <canvas id="sketch-canvas" width="512" height="512"></canvas>
+                    </div>
+                </div>
+
+                <!-- 风格迁移模式 -->
+                <div class="workspace-mode" id="mode-style">
+                    <div class="upload-zone" id="style-upload-zone">
+                        <input type="file" id="style-input" accept="image/*" hidden>
+                        <div class="upload-content">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.5">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                            <p>拖拽图片到此处，或点击上传</p>
+                            <span class="upload-hint">支持 JPG、PNG、WebP 格式</span>
+                        </div>
+                        <img id="style-preview" class="preview-image" alt="参考图预览" hidden>
+                    </div>
+
+                    <!-- 多图片上传编辑区 -->
+                    <div class="multi-image-section">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                            <span>多图融合</span>
+                            <span class="badge">可选</span>
+                        </div>
+                        <div class="image-gallery" id="image-gallery">
+                            <div class="gallery-item gallery-add" id="add-image-btn" title="添加更多图片">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19" />
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                </svg>
+                            </div>
+                            <input type="file" id="multi-image-input" accept="image/*" multiple hidden>
+                        </div>
+                        <p class="multi-image-hint">上传多张图片进行风格融合，点击图片选择使用</p>
+                    </div>
+                </div>
+
+                <!-- 局部修改模式 -->
+                <div class="workspace-mode" id="mode-mask">
+                    <!-- 多图片上传区域 -->
+                    <div class="multi-image-section mask-multi-upload">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                            <span>多图编辑</span>
+                            <span class="badge">可选</span>
+                        </div>
+                        <div class="upload-row">
+                            <div class="upload-box" id="mask-base-upload" role="button" tabindex="0"
+                                aria-label="上传底图（图片1）">
+                                <input type="file" id="mask-base-input" accept="image/png,image/jpeg,image/webp" hidden
+                                    aria-label="选择底图">
+                                <div class="upload-placeholder" id="mask-base-placeholder">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.5">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                        <circle cx="8.5" cy="8.5" r="1.5" />
+                                        <polyline points="21 15 16 10 5 21" />
+                                    </svg>
+                                    <p>上传底图（图片1）</p>
+                                    <small>需要修改的原图</small>
+                                </div>
+                                <img id="mask-base-preview" class="preview-image" alt="底图预览" hidden>
+                                <button id="mask-base-remove" class="remove-btn" hidden title="移除底图">×</button>
+                            </div>
+                            <div class="upload-box" id="mask-ref-upload" role="button" tabindex="0"
+                                aria-label="上传参考素材图（图片2）">
+                                <input type="file" id="mask-ref-input" accept="image/png,image/jpeg,image/webp" hidden
+                                    aria-label="选择参考素材图">
+                                <div class="upload-placeholder" id="mask-ref-placeholder">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.5">
+                                        <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                                        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                                    </svg>
+                                    <p>上传参考素材图（图片2）</p>
+                                    <small>用于替换的内容素材</small>
+                                </div>
+                                <img id="mask-ref-preview" class="preview-image" alt="参考素材预览" hidden>
+                                <button id="mask-ref-remove" class="remove-btn" hidden title="移除参考图">×</button>
+                            </div>
+                        </div>
+                        <p class="multi-image-hint">上传底图后涂抹需要修改的区域；上传参考素材图后，AI会将素材内容融合到涂抹区域</p>
+                    </div>
+
+                    <div class="canvas-toolbar">
+                        <div class="tool-group">
+                            <button class="tool-btn active" data-tool="brush" title="画笔">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                                </svg>
+                            </button>
+                            <button class="tool-btn" data-tool="eraser" title="橡皮擦">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="tool-divider"></div>
+                        <div class="tool-group">
+                            <label>笔刷大小</label>
+                            <input type="range" id="mask-size" min="5" max="50" value="20" class="size-slider">
+                            <span class="size-value">20</span>
+                        </div>
+                        <div class="tool-divider"></div>
+                        <button class="tool-btn" id="mask-clear" title="清除蒙版">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="canvas-wrapper mask-wrapper">
+                        <canvas id="mask-base-canvas" width="512" height="512"></canvas>
+                        <canvas id="mask-overlay-canvas" width="512" height="512"></canvas>
+                        <div class="upload-overlay" id="mask-canvas-overlay">
+                            <p>请先上传底图</p>
+                        </div>
+                    </div>
+                    <!-- 涂抹预览区 -->
+                    <div class="mask-preview-section" id="mask-preview-section" style="display: none;">
+                        <div class="preview-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                            </svg>
+                            <span>涂抹预览</span>
+                        </div>
+                        <div class="mask-preview-container">
+                            <canvas id="mask-preview-canvas" width="512" height="512"></canvas>
+                        </div>
+                        <p class="preview-hint">实时预览涂抹区域效果</p>
+                    </div>
+                    <!-- 局部修改模式提示词输入 -->
+                    <div class="mask-prompt-section">
+                        <label class="section-label">描述如何修改</label>
+                        <textarea id="mask-prompt" class="prompt-textarea"
+                            placeholder="描述如何将参考素材融合到涂抹区域，例如：将logo自然融入墙面，保持光影一致..."
+                            rows="3">将参考素材自然融合到涂抹区域，保持光影和风格一致</textarea>
+                        <button id="mask-send" class="btn-generate mask-generate-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M22 2L11 13" />
+                                <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                            </svg>
+                            <span>开始融合</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 生成结果预览栏 -->
+            <aside class="result-panel">
+                <div class="result-header">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    <span>生成结果</span>
+                    <button class="btn-icon btn-small" id="clear-results" title="清空历史">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="result-list" id="result-list">
+                    <!-- 生成的图片将显示在这里 -->
+                    <div class="result-empty">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        <p>生成的图片将显示在这里</p>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script src="scripts/api.js"></script>
+    <script src="scripts/popup.js"></script>
+</body>
+
+</html>

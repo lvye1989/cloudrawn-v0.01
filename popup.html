@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Permissions-Policy"
+        content="accelerometer=(), gyroscope=(), magnetometer=(), camera=(), microphone=(), geolocation=()">
+    <title>Qwen Canvas Workbench</title>
+    <link rel="stylesheet" href="styles/popup.css">
+</head>
+
+<body>
+    <main class="container">
+        <header class="header">
+            <h1><span aria-hidden="true">🎨</span> <span class="visually-hidden">画板</span> 彩云间AI画板</h1>
+            <p class="subtitle">AI 驱动的图像创作工作台</p>
+        </header>
+
+        <!-- API Key 设置 -->
+        <div class="api-key-section">
+            <label for="api-key">阿里云百炼 API Key:</label>
+            <input type="password" id="api-key" placeholder="请输入您的 API Key" aria-label="API Key">
+            <button id="save-api-key" class="btn-secondary" type="button">保存</button>
+        </div>
+
+        <nav class="tabs" role="tablist" aria-label="功能标签页">
+            <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="sketch-panel"
+                data-tab="sketch" id="tab-sketch">
+                <span aria-hidden="true">✏️</span> 线稿绘制
+            </button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="style-panel" data-tab="style"
+                id="tab-style">
+                <span aria-hidden="true">🖼️</span> 风格迁移
+            </button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="mask-panel" data-tab="mask"
+                id="tab-mask">
+                <span aria-hidden="true">✂️</span> 局部修改
+            </button>
+        </nav>
+
+        <!-- 功能1: 手绘线稿 -->
+        <section id="sketch-panel" class="panel active" role="tabpanel" aria-labelledby="tab-sketch">
+            <div class="toolbar">
+                <div class="tool-group">
+                    <label for="sketch-color">画笔颜色:</label>
+                    <input type="color" id="sketch-color" value="#000000" aria-label="选择画笔颜色">
+                </div>
+                <div class="tool-group">
+                    <label for="sketch-size">画笔大小:</label>
+                    <input type="range" id="sketch-size" min="1" max="20" value="3" aria-label="调整画笔大小">
+                    <span id="sketch-size-value" aria-live="polite">3</span>
+                </div>
+                <button id="sketch-clear" class="btn-secondary" type="button">清空画布</button>
+            </div>
+            <div class="canvas-container">
+                <canvas id="sketch-canvas" width="512" height="512" aria-label="手绘线稿画布，按住鼠标左键绘制"></canvas>
+            </div>
+            <div class="prompt-section">
+                <label for="sketch-prompt" class="visually-hidden">图片描述提示词</label>
+                <textarea id="sketch-prompt" placeholder="描述你想要的图片效果（可选）..."
+                    aria-label="图片描述提示词">请将这张手绘线稿转化为高清写实图片</textarea>
+                <button id="sketch-send" class="btn-primary" type="button">生成图片</button>
+            </div>
+        </section>
+
+        <!-- 功能2: 风格迁移 -->
+        <section id="style-panel" class="panel" role="tabpanel" aria-labelledby="tab-style">
+            <div class="upload-section">
+                <div class="upload-area" id="style-upload-area" role="button" tabindex="0" aria-label="点击或拖拽上传风格参考图">
+                    <input type="file" id="style-input" accept="image/png,image/jpeg,image/webp" hidden
+                        aria-label="选择风格参考图片">
+                    <div class="upload-placeholder">
+                        <span class="icon" aria-hidden="true">📤</span>
+                        <p>点击或拖拽上传风格参考图</p>
+                        <small>支持 JPG, PNG, WebP</small>
+                    </div>
+                    <img id="style-preview" class="preview-image" alt="风格预览图" hidden>
+                </div>
+            </div>
+            <div class="prompt-section">
+                <label for="style-prompt" class="visually-hidden">风格描述提示词</label>
+                <textarea id="style-prompt" placeholder="描述你想要生成的内容..." aria-label="风格描述提示词">请以这张图片的风格生成</textarea>
+                <button id="style-send" class="btn-primary" type="button" disabled>生成图片</button>
+            </div>
+        </section>
+
+        <!-- 功能3: 局部修改 -->
+        <section id="mask-panel" class="panel" role="tabpanel" aria-labelledby="tab-mask">
+            <!-- 多图片上传区域 -->
+            <div class="multi-image-upload-section">
+                <div class="upload-row">
+                    <div class="upload-box" id="mask-base-upload" role="button" tabindex="0" aria-label="上传底图（图片1）">
+                        <input type="file" id="mask-base-input" accept="image/png,image/jpeg,image/webp" hidden
+                            aria-label="选择底图">
+                        <div class="upload-placeholder" id="mask-base-placeholder">
+                            <span class="icon" aria-hidden="true">🖼️</span>
+                            <p>上传底图（图片1）</p>
+                            <small>需要修改的原图</small>
+                        </div>
+                        <img id="mask-base-preview" class="preview-image" alt="底图预览" hidden>
+                        <button id="mask-base-remove" class="remove-btn" hidden title="移除底图">×</button>
+                    </div>
+                    <div class="upload-box" id="mask-ref-upload" role="button" tabindex="0" aria-label="上传参考素材图（图片2）">
+                        <input type="file" id="mask-ref-input" accept="image/png,image/jpeg,image/webp" hidden
+                            aria-label="选择参考素材图">
+                        <div class="upload-placeholder" id="mask-ref-placeholder">
+                            <span class="icon" aria-hidden="true">🎨</span>
+                            <p>上传参考素材图（图片2）</p>
+                            <small>用于替换的内容素材</small>
+                        </div>
+                        <img id="mask-ref-preview" class="preview-image" alt="参考素材预览" hidden>
+                        <button id="mask-ref-remove" class="remove-btn" hidden title="移除参考图">×</button>
+                    </div>
+                </div>
+                <p class="upload-hint">提示：上传底图后，在画布上涂抹需要修改的区域；上传参考素材图后，AI会将素材内容融合到涂抹区域</p>
+            </div>
+
+            <div class="toolbar">
+                <fieldset class="tool-group">
+                    <legend>涂抹工具:</legend>
+                    <button id="mask-brush" class="tool-btn active" type="button" aria-pressed="true"
+                        data-tool="brush">画笔</button>
+                    <button id="mask-eraser" class="tool-btn" type="button" aria-pressed="false"
+                        data-tool="eraser">橡皮</button>
+                </fieldset>
+                <div class="tool-group">
+                    <label for="mask-size">笔刷大小:</label>
+                    <input type="range" id="mask-size" min="5" max="50" value="20" aria-label="调整蒙版笔刷大小">
+                    <span id="mask-size-value" aria-live="polite">20</span>
+                </div>
+                <button id="mask-clear" class="btn-secondary" type="button">清除蒙版</button>
+            </div>
+            <div class="canvas-container mask-container">
+                <canvas id="mask-base-canvas" width="512" height="512" aria-label="底图显示层"></canvas>
+                <canvas id="mask-overlay-canvas" width="512" height="512" aria-label="蒙版编辑层，涂抹需要修改的区域"></canvas>
+                <div id="mask-canvas-overlay" class="canvas-overlay hidden">
+                    <p>请先上传底图</p>
+                </div>
+            </div>
+            <div class="prompt-section">
+                <label for="mask-prompt" class="visually-hidden">修改描述提示词</label>
+                <textarea id="mask-prompt" placeholder="描述如何将参考素材融合到涂抹区域，例如：将logo自然融入墙面，保持光影一致..."
+                    aria-label="修改描述提示词">将参考素材自然融合到涂抹区域，保持光影和风格一致</textarea>
+                <button id="mask-send" class="btn-primary" type="button" disabled>生成图片</button>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div id="status" class="status" role="status" aria-live="polite">就绪</div>
+        </footer>
+    </main>
+
+    <script src="scripts/api.js"></script>
+    <script src="scripts/popup.js"></script>
+</body>
+
+</html>
