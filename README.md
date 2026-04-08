@@ -6,7 +6,9 @@
 
 ---
 <img width="1423" height="694" alt="截屏2026-04-08 22 08 08" src="https://github.com/user-attachments/assets/4cc7b63f-7f20-4bea-ae65-a8cd1cd7bb3a" />
-
+<img width="1425" height="699" alt="截屏2026-04-08 22 09 57" src="https://github.com/user-attachments/assets/d62e961f-7ad1-420d-9049-9e4410659afb" />
+<img width="1427" height="688" alt="截屏2026-04-08 22 10 33" src="https://github.com/user-attachments/assets/dd562207-4cf9-4240-847e-960166543917" />
+<img width="1422" height="688" alt="截屏2026-04-08 22 11 00" src="https://github.com/user-attachments/assets/a606696e-273a-48e1-a33e-8a0f4e4ac686" />
 ## 这个项目解决了什么问题？ / What Problems Does This Project Solve?
 
 在日常使用 AI 生成图片时，用户经常面临以下痛点：
