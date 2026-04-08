@@ -5,6 +5,7 @@
 > A Chrome extension-based AI image generation and editing tool, supporting multi-model switching between Alibaba Cloud Bailian Qwen and Replicate FLUX 2 Pro, with advanced features like style transfer, sketch-to-image, and local mask editing.
 
 ---
+<img width="1423" height="694" alt="截屏2026-04-08 22 08 08" src="https://github.com/user-attachments/assets/4cc7b63f-7f20-4bea-ae65-a8cd1cd7bb3a" />
 
 ## 这个项目解决了什么问题？ / What Problems Does This Project Solve?
 
