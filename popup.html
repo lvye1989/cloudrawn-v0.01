@@ -56,6 +56,20 @@
             <div class="canvas-container">
                 <canvas id="sketch-canvas" width="512" height="512" aria-label="手绘线稿画布，按住鼠标左键绘制"></canvas>
             </div>
+            <div class="upload-section">
+                <div class="upload-area" id="sketch-upload-area" role="button" tabindex="0" aria-label="点击或拖拽上传参考图"
+                    style="position: relative; min-height: 120px; border: 2px dashed var(--border-color); border-radius: var(--radius-lg); cursor: pointer;">
+                    <input type="file" id="sketch-input" accept="image/png,image/jpeg,image/webp" hidden
+                        aria-label="选择参考图片">
+                    <div class="upload-placeholder" id="sketch-placeholder">
+                        <span class="icon" aria-hidden="true">📤</span>
+                        <p>点击或拖拽上传参考图（可选）</p>
+                        <small>支持 JPG, PNG, WebP</small>
+                    </div>
+                    <img id="sketch-preview" class="preview-image" alt="参考图预览" hidden>
+                    <button id="sketch-remove" class="remove-btn" hidden title="移除参考图">×</button>
+                </div>
+            </div>
             <div class="prompt-section">
                 <label for="sketch-prompt" class="visually-hidden">图片描述提示词</label>
                 <textarea id="sketch-prompt" placeholder="描述你想要的图片效果（可选）..."

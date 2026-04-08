@@ -1,0 +1,99 @@
+# ============================================
+# 环境变量和敏感配置
+# ============================================
+.env
+.env.local
+.env.*.local
+config.local.json
+*.local
+
+# API Keys 和密钥文件
+*.key
+*.pem
+secrets.json
+
+# ============================================
+# 依赖和包管理
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ============================================
+# 构建输出
+# ============================================
+dist/
+build/
+out/
+*.zip
+*.crx
+
+# ============================================
+# IDE 和编辑器
+# ============================================
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# WebStorm/IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ============================================
+# 日志和临时文件
+# ============================================
+logs/
+*.log
+*.tmp
+*.temp
+.cache/
+
+# ============================================
+# Chrome 扩展相关
+# ============================================
+# 扩展打包文件
+*.crx
+*.pem
+# 发布密钥
+key.pem
+
+# ============================================
+# 测试和覆盖率
+# ============================================
+coverage/
+.nyc_output/
+
+# =========================================
+# 其他
+# =========================================
+*.bak
+*.orig

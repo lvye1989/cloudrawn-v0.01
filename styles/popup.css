@@ -824,6 +824,42 @@
     cursor: pointer;
 }
 
+/* 图片容器 */
+.result-img-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.result-img-container:hover .expand-btn {
+    opacity: 1;
+}
+
+/* 放大按钮 */
+.expand-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.9);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.expand-btn:hover {
+    background: var(--accent-primary);
+    transform: translate(-50%, -50%) scale(1.1);
+}
+
 .result-item .result-actions {
     position: absolute;
     top: 8px;
@@ -1343,6 +1379,48 @@ body.resizing * {
 
 .section-header svg {
     color: var(--accent-primary);
+}
+
+/* 优化按钮样式 */
+.btn-optimize {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    margin-left: auto;
+    background: linear-gradient(135deg, var(--accent-primary) 0%, #8B5CF6 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-optimize:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.btn-optimize:active {
+    transform: translateY(0);
+}
+
+.btn-optimize:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-optimize-small {
+    padding: 3px 8px;
+    font-size: 10px;
+}
+
+.btn-optimize-small svg {
+    width: 10px;
+    height: 10px;
 }
 
 .section-label {
@@ -2173,4 +2251,181 @@ body.resizing * {
 ::selection {
     background: rgba(139, 92, 246, 0.3);
     color: var(--text-primary);
+}
+
+/* Sketch Mode Upload Section */
+#sketch-panel .upload-section {
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+}
+
+#sketch-upload-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--bg-tertiary);
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    min-height: 120px;
+}
+
+#sketch-upload-area:hover {
+    border-color: var(--accent-primary);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+#sketch-upload-area.drag-over {
+    border-color: var(--accent-primary);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+#sketch-upload-area.has-image {
+    border-style: solid;
+    border-color: var(--accent-primary);
+}
+
+#sketch-upload-area .upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 16px;
+}
+
+#sketch-upload-area .upload-placeholder .icon {
+    font-size: 32px;
+}
+
+#sketch-upload-area .upload-placeholder p {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#sketch-upload-area .upload-placeholder small {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+#sketch-preview {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 8px;
+    background: var(--bg-tertiary);
+}
+
+#sketch-remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 5;
+    transition: all 0.2s;
+}
+
+#sketch-remove:hover {
+    background: var(--error);
+    transform: scale(1.1);
+}
+
+/* ==================== 图片预览模态框 ==================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.modal-content {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.modal-close {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.preview-image-full {
+    max-width: 90vw;
+    max-height: calc(90vh - 60px);
+    object-fit: contain;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.preview-prompt {
+    max-width: 80vw;
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+    color: white;
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.5;
+    word-wrap: break-word;
 }

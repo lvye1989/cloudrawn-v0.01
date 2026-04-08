@@ -42,6 +42,8 @@ const state = {
     // 多图片编辑支持（局部修改模式）
     maskBaseImage: null,      // 底图（图片1）
     maskRefImage: null,       // 参考素材图（图片2）
+    // 线稿模式参考图
+    sketchRefImage: null,     // 线稿参考图
     // 主页选项
     homeSize: '1:1',
     homeQuality: 'high'
@@ -82,6 +84,12 @@ function init() {
 
         // 初始化局部修改模式按钮状态
         updateMaskGenerateButtonState();
+
+        // 初始化线稿模式图片画廊（渲染添加按钮）
+        renderSketchImageGallery();
+
+        // 初始化风格迁移模式图片画廊（渲染添加按钮）
+        renderImageGallery();
 
         // 页面卸载时清理
         window.addEventListener('beforeunload', cleanup);
@@ -135,6 +143,11 @@ function cacheElements() {
     elements.sketchColor = document.getElementById('sketch-color');
     elements.sketchSize = document.getElementById('sketch-size');
     elements.sketchClear = document.getElementById('sketch-clear');
+    elements.sketchUploadArea = document.getElementById('sketch-upload-area');
+    elements.sketchInput = document.getElementById('sketch-input');
+    elements.sketchPreview = document.getElementById('sketch-preview');
+    elements.sketchPlaceholder = document.getElementById('sketch-placeholder');
+    elements.sketchRemove = document.getElementById('sketch-remove');
 
     // 风格迁移模式
     elements.styleUploadZone = document.getElementById('style-upload-zone');
@@ -147,9 +160,9 @@ function cacheElements() {
     elements.multiImageInput = document.getElementById('multi-image-input');
 
     // 线稿模式多图片上传
-    elements.sketchImageGallery = document.getElementById('sketch-image-gallery');
+    elements.sketchImageGallery = document.getElementById('sketch-image-gallery-panel');
     elements.sketchAddImageBtn = document.getElementById('sketch-add-image-btn');
-    elements.sketchMultiImageInput = document.getElementById('sketch-multi-image-input');
+    elements.sketchMultiImageInput = document.getElementById('sketch-multi-image-input-panel');
 
     // 控制面板元素
     // 线稿模式控制面板
@@ -160,18 +173,25 @@ function cacheElements() {
     elements.sketchImageGalleryPanel = document.getElementById('sketch-image-gallery-panel');
     elements.sketchAddImageBtnPanel = document.getElementById('sketch-add-image-btn-panel');
     elements.sketchMultiImageInputPanel = document.getElementById('sketch-multi-image-input-panel');
+    elements.sketchOptimizeBtn = document.getElementById('sketch-optimize-btn');
 
     // 风格迁移模式控制面板
     elements.stylePromptPanel = document.getElementById('style-prompt-panel');
     elements.styleGeneratePanel = document.getElementById('style-generate-panel');
     elements.styleImageSizePanel = document.getElementById('style-image-size-panel');
     elements.styleStrengthPanel = document.getElementById('style-strength-panel');
+    elements.styleOptimizeBtn = document.getElementById('style-optimize-btn');
 
     // 局部修改模式控制面板
     elements.maskSizePanel = document.getElementById('mask-size-panel');
     elements.maskClearPanel = document.getElementById('mask-clear-panel');
-    elements.maskPromptPanel = document.getElementById('mask-prompt-panel');
-    elements.maskGeneratePanel = document.getElementById('mask-generate-panel');
+    // 注意：mask-prompt-panel 已在控制面板中移除，提示词输入使用工作区的 mask-prompt
+    elements.maskOptimizeBtnMain = document.getElementById('mask-optimize-btn-main');
+
+    // 主页设置面板
+    elements.homeMainPrompt = document.getElementById('home-main-prompt');
+    elements.homeNegativePrompt = document.getElementById('home-negative-prompt');
+    elements.homeOptimizeBtn = document.getElementById('home-optimize-btn');
 
     // 局部修改模式
     elements.maskBaseCanvas = document.getElementById('mask-base-canvas');
@@ -244,6 +264,7 @@ function cleanup() {
     state.maskImage = null;
     state.maskBaseImage = null;
     state.maskRefImage = null;
+    state.sketchRefImage = null;
 
     // 清理生成结果和多图片数据
     generatedResults.length = 0;
@@ -327,6 +348,19 @@ function bindEvents() {
     }, CONSTANTS.DEBOUNCE_DELAY));
     addListener(elements.sketchClear, 'click', clearSketchCanvas);
 
+    // 线稿参考图上传
+    if (elements.sketchUploadArea) {
+        addListener(elements.sketchUploadArea, 'click', () => elements.sketchInput?.click());
+        addListener(elements.sketchUploadArea, 'dragover', handleDragOver);
+        addListener(elements.sketchUploadArea, 'dragleave', handleDragLeave);
+        addListener(elements.sketchUploadArea, 'drop', handleSketchDrop);
+    }
+    addListener(elements.sketchInput, 'change', handleSketchSelect);
+    addListener(elements.sketchRemove, 'click', (e) => {
+        e.stopPropagation();
+        removeSketchRefImage();
+    });
+
     // 风格上传
     if (elements.styleUploadZone) {
         addListener(elements.styleUploadZone, 'click', () => elements.styleInput?.click());
@@ -345,15 +379,16 @@ function bindEvents() {
     });
 
     // 线稿模式多图片上传
-    if (elements.sketchAddImageBtn) {
-        addListener(elements.sketchAddImageBtn, 'click', () => elements.sketchMultiImageInput?.click());
+    // 注意：sketchAddImageBtn 的事件在 renderSketchImageGallery 中动态绑定
+    // 只需要绑定 input 的 change 事件
+    if (elements.sketchMultiImageInput) {
+        addListener(elements.sketchMultiImageInput, 'change', (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                handleSketchMultipleImages(e.target.files);
+                e.target.value = ''; // 清空以允许重复选择相同文件
+            }
+        });
     }
-    addListener(elements.sketchMultiImageInput, 'change', (e) => {
-        if (e.target.files && e.target.files.length > 0) {
-            handleSketchMultipleImages(e.target.files);
-            e.target.value = ''; // 清空以允许重复选择相同文件
-        }
-    });
 
     // 蒙版工具
     addListener(elements.maskSize, 'input', debounce((e) => {
@@ -361,6 +396,8 @@ function bindEvents() {
         state.maskSize = validateBrushSize(size, CONSTANTS.DEFAULT_MASK_SIZE);
         const valueDisplay = e.target.nextElementSibling;
         if (valueDisplay) valueDisplay.textContent = state.maskSize;
+        // 实时更新预览区的笔刷大小
+        updateMaskPreview();
     }, CONSTANTS.DEBOUNCE_DELAY));
     addListener(elements.maskClear, 'click', clearMaskCanvas);
 
@@ -444,10 +481,9 @@ function bindControlPanelEvents() {
         addListener(elements.sketchGeneratePanel, 'click', handleSketchGenerate);
     }
 
-    if (elements.sketchAddImageBtnPanel) {
-        addListener(elements.sketchAddImageBtnPanel, 'click', () => elements.sketchMultiImageInputPanel?.click());
-    }
-
+    // 注意：sketchAddImageBtnPanel 和 sketchMultiImageInputPanel 的事件
+    // 在 renderSketchImageGallery 中动态绑定，因为按钮是动态创建的
+    // 只需要绑定 input 的 change 事件
     if (elements.sketchMultiImageInputPanel) {
         addListener(elements.sketchMultiImageInputPanel, 'change', (e) => {
             if (e.target.files && e.target.files.length > 0) {
@@ -475,6 +511,8 @@ function bindControlPanelEvents() {
                 const toolbarValueDisplay = elements.maskSize.nextElementSibling;
                 if (toolbarValueDisplay) toolbarValueDisplay.textContent = state.maskSize;
             }
+            // 实时更新预览区的笔刷大小
+            updateMaskPreview();
         }, CONSTANTS.DEBOUNCE_DELAY));
     }
 
@@ -484,6 +522,37 @@ function bindControlPanelEvents() {
 
     if (elements.maskGeneratePanel) {
         addListener(elements.maskGeneratePanel, 'click', handleMaskGenerate);
+    }
+
+    // 优化按钮事件绑定
+    if (elements.sketchOptimizeBtn) {
+        addListener(elements.sketchOptimizeBtn, 'click', () => {
+            handleOptimizeButton('sketch-prompt-panel', '线稿绘制模式');
+        });
+    }
+
+    if (elements.styleOptimizeBtn) {
+        addListener(elements.styleOptimizeBtn, 'click', () => {
+            handleOptimizeButton('style-prompt-panel', '风格迁移模式');
+        });
+    }
+
+    if (elements.maskOptimizeBtn) {
+        addListener(elements.maskOptimizeBtn, 'click', () => {
+            handleOptimizeButton('mask-prompt-panel', '局部修改模式');
+        });
+    }
+
+    if (elements.maskOptimizeBtnMain) {
+        addListener(elements.maskOptimizeBtnMain, 'click', () => {
+            handleOptimizeButton('mask-prompt', '局部修改模式');
+        });
+    }
+
+    if (elements.homeOptimizeBtn) {
+        addListener(elements.homeOptimizeBtn, 'click', () => {
+            handleOptimizeButton('home-main-prompt', '主页AI图片生成');
+        });
     }
 }
 
@@ -739,6 +808,95 @@ function autoResizeTextarea(textarea) {
     textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
 }
 
+// 优化提示词 - 使用 Qwen3.5 模型（返回原始结果，不自动更新输入框）
+async function optimizePromptText(prompt, negativePrompt = '', scene = '') {
+    try {
+        // 检查是否包含中文字符
+        const hasChinese = /[\u4e00-\u9fa5]/.test(prompt);
+
+        // 如果没有中文，不进行优化
+        if (!hasChinese) {
+            return { prompt, negativePrompt, wasOptimized: false };
+        }
+
+        updateStatus('正在优化提示词...', 'loading');
+
+        const result = await optimizePrompt({
+            prompt: prompt,
+            apiKey: state.apiKey,
+            negativePrompt: negativePrompt,
+            scene: scene
+        });
+
+        return {
+            prompt: result.optimizedPrompt,
+            negativePrompt: result.optimizedNegative || negativePrompt,
+            wasOptimized: true
+        };
+    } catch (error) {
+        console.error('提示词优化失败:', error);
+        // 优化失败时返回原始提示词
+        return { prompt, negativePrompt, wasOptimized: false };
+    }
+}
+
+// 优化按钮点击处理 - 直接更新输入框内容
+async function handleOptimizeButton(targetElementId, scene = '') {
+    const textarea = document.getElementById(targetElementId);
+    if (!textarea) {
+        console.error('找不到输入框:', targetElementId);
+        return;
+    }
+
+    const prompt = textarea.value?.trim();
+    if (!prompt) {
+        updateStatus('请先输入提示词', 'error');
+        return;
+    }
+
+    // 检查是否有 API Key
+    if (!state.apiKey) {
+        updateStatus('请先设置 API Key', 'error');
+        const apiKeyInput = document.getElementById('api-key') || document.getElementById('home-api-key');
+        apiKeyInput?.focus();
+        return;
+    }
+
+    // 获取对应的负面提示词（如果有）
+    let negativePrompt = '';
+    if (targetElementId === 'home-main-prompt') {
+        const negTextarea = document.getElementById('home-negative-prompt');
+        negativePrompt = negTextarea?.value?.trim() || '';
+    }
+
+    try {
+        const result = await optimizePromptText(prompt, negativePrompt, scene);
+
+        if (result.wasOptimized) {
+            // 更新输入框内容
+            textarea.value = result.prompt;
+
+            // 如果有对应的负面提示词输入框，也更新
+            if (targetElementId === 'home-main-prompt') {
+                const negTextarea = document.getElementById('home-negative-prompt');
+                if (negTextarea && result.negativePrompt) {
+                    negTextarea.value = result.negativePrompt;
+                }
+            }
+
+            // 调整输入框高度
+            autoResizeTextarea(textarea);
+
+            updateStatus('提示词已优化！', 'success');
+        } else {
+            updateStatus('提示词无需优化（已为英文）', 'success');
+        }
+    } catch (error) {
+        console.error('优化失败:', error);
+        updateStatus('提示词优化失败: ' + error.message, 'error');
+    }
+}
+
 // 主页生成处理
 async function handleHomeGenerate() {
     try {
@@ -770,10 +928,16 @@ async function handleHomeGenerate() {
         // 合并提示词（主输入框 + 详细提示词）
         const finalPrompt = mainPrompt ? `${prompt}，${mainPrompt}` : prompt;
 
+        // 优化提示词（中译英+优化）
+        const optimized = await optimizePromptText(finalPrompt, negativePrompt, '主页AI图片生成');
+        if (optimized.wasOptimized) {
+            updateHomeStatus('提示词已优化，正在生成...');
+        }
+
         const params = {
-            prompt: finalPrompt,
+            prompt: optimized.prompt,
             apiKey: state.apiKey,
-            negativePrompt,
+            negativePrompt: optimized.negativePrompt,
             size,
             quality,
             promptExtend
@@ -795,9 +959,9 @@ async function handleHomeGenerate() {
             result = await generateImage(params);
         }
 
-        // 添加到结果预览栏
-        addResult(result, finalPrompt);
-        updateHomeStatus('生成成功！', 'success');
+        // 添加到结果预览栏（使用优化后的提示词）
+        addResult(result, optimized.prompt);
+        updateHomeStatus(optimized.wasOptimized ? '提示词已优化，生成成功！' : '生成成功！', 'success');
 
     } catch (error) {
         console.error('Home generation error:', error);
@@ -825,16 +989,35 @@ async function handleSketchGenerate() {
         const promptInput = elements.sketchPromptPanel || document.getElementById('sketch-prompt');
         const prompt = promptInput?.value?.trim() || '将线稿转换为完整图像';
 
+        // 优化提示词（中译英+优化）
+        const optimized = await optimizePromptText(prompt, '', '线稿绘制模式');
+        if (optimized.wasOptimized) {
+            updateStatus('提示词已优化，正在生成...');
+        }
+
         updateStatus('正在生成...', 'loading');
 
-        const result = await generateWithSketch({
-            sketchData,
-            prompt,
-            apiKey: state.apiKey
-        });
+        let result;
 
-        addResult(result, prompt);
-        updateStatus('生成成功！', 'success');
+        // 如果有上传的参考图，使用带参考的生成
+        if (state.sketchRefImage) {
+            result = await generateWithReference({
+                prompt: optimized.prompt,
+                apiKey: state.apiKey,
+                referenceImage: state.sketchRefImage,
+                sketchImage: sketchData
+            });
+        } else {
+            // 否则使用普通线稿生成
+            result = await generateWithReference({
+                prompt: optimized.prompt,
+                apiKey: state.apiKey,
+                referenceImage: sketchData
+            });
+        }
+
+        addResult(result, optimized.prompt);
+        updateStatus(optimized.wasOptimized ? '提示词已优化，生成成功！' : '生成成功！', 'success');
 
     } catch (error) {
         console.error('Sketch generation error:', error);
@@ -861,17 +1044,23 @@ async function handleStyleGenerate() {
         const sizeSelect = elements.styleImageSizePanel || document.getElementById('style-image-size');
         const size = sizeSelect?.value || '1024*1024';
 
+        // 优化提示词（中译英+优化）
+        const optimized = await optimizePromptText(prompt, '', '风格迁移模式');
+        if (optimized.wasOptimized) {
+            updateStatus('提示词已优化，正在生成...');
+        }
+
         updateStatus('正在生成...', 'loading');
 
-        const result = await generateWithStyle({
-            styleImage: state.styleImage,
-            prompt,
+        const result = await generateWithReference({
+            referenceImage: state.styleImage,
+            prompt: optimized.prompt,
             size,
             apiKey: state.apiKey
         });
 
-        addResult(result, prompt);
-        updateStatus('生成成功！', 'success');
+        addResult(result, optimized.prompt);
+        updateStatus(optimized.wasOptimized ? '提示词已优化，生成成功！' : '生成成功！', 'success');
 
     } catch (error) {
         console.error('Style generation error:', error);
@@ -934,6 +1123,16 @@ async function handleMaskGenerate() {
             promptExtend: promptExtend?.checked ?? true
         };
 
+        // 优化提示词（中译英+优化）
+        const optimized = await optimizePromptText(prompt, params.negativePrompt, '局部修改模式');
+        if (optimized.wasOptimized) {
+            updateStatus('提示词已优化，正在生成...');
+        }
+
+        // 更新params中的提示词
+        params.prompt = optimized.prompt;
+        params.negativePrompt = optimized.negativePrompt;
+
         updateStatus('正在生成...', 'loading');
         if (maskSendBtn) maskSendBtn.disabled = true;
 
@@ -959,9 +1158,9 @@ async function handleMaskGenerate() {
             });
         }
 
-        // 添加到结果预览栏
-        addResult(result, prompt);
-        updateStatus('生成成功！', 'success');
+        // 添加到结果预览栏（使用优化后的提示词）
+        addResult(result, optimized.prompt);
+        updateStatus(optimized.wasOptimized ? '提示词已优化，生成成功！' : '生成成功！', 'success');
 
     } catch (error) {
         console.error('Generation error:', error);
@@ -1350,22 +1549,25 @@ function updateMaskPreview(currentPoint) {
     previewCtx.drawImage(elements.maskOverlayCanvas, 0, 0);
     previewCtx.globalAlpha = 1.0;
 
-    // 如果有当前涂抹点，绘制高亮框
-    if (currentPoint && state.isDrawing) {
-        const brushSize = state.maskSize;
-        const halfSize = brushSize / 2;
+    // 绘制圆形笔刷预览
+    const brushSize = state.maskSize;
+    const previewCenterX = CONSTANTS.CANVAS_SIZE / 2;
+    const previewCenterY = CONSTANTS.CANVAS_SIZE / 2;
 
-        // 绘制当前涂抹位置的高亮框
+    if (currentPoint && state.isDrawing) {
+        // 绘制当前涂抹位置的圆形笔刷
+        // 绘制圆形笔刷轮廓
         previewCtx.strokeStyle = '#8B5CF6';
         previewCtx.lineWidth = 2;
-        previewCtx.setLineDash([4, 4]);
-        previewCtx.strokeRect(
-            currentPoint.x - halfSize,
-            currentPoint.y - halfSize,
-            brushSize,
-            brushSize
-        );
-        previewCtx.setLineDash([]);
+        previewCtx.beginPath();
+        previewCtx.arc(currentPoint.x, currentPoint.y, brushSize / 2, 0, Math.PI * 2);
+        previewCtx.stroke();
+
+        // 绘制半透明的圆形填充（显示笔刷实际覆盖区域）
+        previewCtx.fillStyle = 'rgba(139, 92, 246, 0.3)';
+        previewCtx.beginPath();
+        previewCtx.arc(currentPoint.x, currentPoint.y, brushSize / 2, 0, Math.PI * 2);
+        previewCtx.fill();
 
         // 绘制十字准心
         previewCtx.strokeStyle = 'rgba(139, 92, 246, 0.8)';
@@ -1382,6 +1584,21 @@ function updateMaskPreview(currentPoint) {
         previewCtx.moveTo(currentPoint.x, 0);
         previewCtx.lineTo(currentPoint.x, CONSTANTS.CANVAS_SIZE);
         previewCtx.stroke();
+    } else if (!currentPoint && !state.isDrawing) {
+        // 没有涂抹时，在画布中心显示示例圆形笔刷
+        previewCtx.strokeStyle = 'rgba(139, 92, 246, 0.6)';
+        previewCtx.lineWidth = 2;
+        previewCtx.setLineDash([4, 4]);
+        previewCtx.beginPath();
+        previewCtx.arc(previewCenterX, previewCenterY, brushSize / 2, 0, Math.PI * 2);
+        previewCtx.stroke();
+        previewCtx.setLineDash([]);
+
+        // 显示笔刷大小文字
+        previewCtx.fillStyle = 'rgba(139, 92, 246, 0.8)';
+        previewCtx.font = '12px sans-serif';
+        previewCtx.textAlign = 'center';
+        previewCtx.fillText(`${brushSize}px`, previewCenterX, previewCenterY + brushSize / 2 + 16);
     }
 
     // 显示预览区域（如果有内容）
@@ -1428,6 +1645,95 @@ function handleStyleSelect(e) {
     if (file) {
         loadStyleImage(file);
     }
+}
+
+// 线稿模式 - 参考图拖放处理
+function handleSketchDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove('drag-over');
+
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        loadSketchRefImage(file);
+    } else {
+        updateStatus('请上传图片文件', 'error');
+    }
+}
+
+function handleSketchSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+        loadSketchRefImage(file);
+        e.target.value = ''; // 清空以允许重复选择
+    }
+}
+
+function loadSketchRefImage(file) {
+    if (!file.type.startsWith('image/')) {
+        updateStatus('请上传有效的图片文件', 'error');
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        try {
+            state.sketchRefImage = e.target.result;
+
+            // 更新预览
+            if (elements.sketchPreview) {
+                elements.sketchPreview.src = state.sketchRefImage;
+                elements.sketchPreview.hidden = false;
+            }
+            if (elements.sketchPlaceholder) {
+                elements.sketchPlaceholder.hidden = true;
+            }
+            if (elements.sketchUploadArea) {
+                elements.sketchUploadArea.classList.add('has-image');
+            }
+            if (elements.sketchRemove) {
+                elements.sketchRemove.hidden = false;
+            }
+
+            updateStatus('参考图已加载');
+        } catch (err) {
+            console.error('Sketch ref image processing error:', err);
+            updateStatus('图片处理失败: ' + err.message, 'error');
+        }
+    };
+
+    reader.onerror = () => {
+        updateStatus('图片读取失败', 'error');
+    };
+
+    try {
+        reader.readAsDataURL(file);
+    } catch (err) {
+        console.error('FileReader error:', err);
+        updateStatus('图片读取失败', 'error');
+    }
+}
+
+function removeSketchRefImage() {
+    state.sketchRefImage = null;
+
+    // 清理预览
+    if (elements.sketchPreview) {
+        elements.sketchPreview.src = '';
+        elements.sketchPreview.hidden = true;
+    }
+    if (elements.sketchPlaceholder) {
+        elements.sketchPlaceholder.hidden = false;
+    }
+    if (elements.sketchUploadArea) {
+        elements.sketchUploadArea.classList.remove('has-image');
+    }
+    if (elements.sketchRemove) {
+        elements.sketchRemove.hidden = true;
+    }
+
+    updateStatus('参考图已移除');
 }
 
 function loadStyleImage(file) {
@@ -1784,10 +2090,16 @@ async function handleGenerate() {
         // 合并提示词
         const finalPrompt = mainPrompt ? `${prompt}，${mainPrompt}` : prompt;
 
+        // 优化提示词（中译英+优化）
+        const optimized = await optimizePromptText(finalPrompt, negativePrompt, '通用生成模式');
+        if (optimized.wasOptimized) {
+            updateStatus('提示词已优化，正在生成...');
+        }
+
         const params = {
-            prompt: finalPrompt,
+            prompt: optimized.prompt,
             apiKey: state.apiKey,
-            negativePrompt,
+            negativePrompt: optimized.negativePrompt,
             size,
             quality,
             promptExtend
@@ -1843,9 +2155,9 @@ async function handleGenerate() {
             result = await generateImage(params);
         }
 
-        // 添加到结果预览栏
-        addResult(result, finalPrompt);
-        updateStatus('生成成功！', 'success');
+        // 添加到结果预览栏（使用优化后的提示词）
+        addResult(result, optimized.prompt);
+        updateStatus(optimized.wasOptimized ? '提示词已优化，生成成功！' : '生成成功！', 'success');
 
     } catch (error) {
         console.error('Generation error:', error);
@@ -1905,17 +2217,42 @@ function renderResults() {
         item.className = 'result-item';
         item.dataset.index = index;
 
+        // 创建图片容器（用于悬停显示放大按钮）
+        const imgContainer = document.createElement('div');
+        imgContainer.className = 'result-img-container';
+
         // 安全创建图片元素
         const img = document.createElement('img');
         img.src = result.url;
         img.alt = '生成结果';
         img.loading = 'lazy';
+
+        // 放大预览按钮
+        const expandBtn = document.createElement('button');
+        expandBtn.className = 'expand-btn';
+        expandBtn.title = '放大预览';
+        expandBtn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                <line x1="11" y1="8" x2="11" y2="14"/>
+                <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+        `;
+        expandBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showImagePreview(result.url, result.prompt);
+        });
+
         img.addEventListener('click', () => {
             // 验证 URL 安全性
             if (result.url && (result.url.startsWith('http://') || result.url.startsWith('https://') || result.url.startsWith('data:'))) {
                 window.open(result.url, '_blank', 'noopener,noreferrer');
             }
         });
+
+        imgContainer.appendChild(img);
+        imgContainer.appendChild(expandBtn);
 
         // 创建操作按钮容器
         const actionsDiv = document.createElement('div');
@@ -1962,12 +2299,57 @@ function renderResults() {
         infoDiv.appendChild(promptDiv);
         infoDiv.appendChild(timeDiv);
 
-        item.appendChild(img);
+        item.appendChild(imgContainer);
         item.appendChild(actionsDiv);
         item.appendChild(infoDiv);
 
         elements.resultList.appendChild(item);
     });
+}
+
+// 显示图片预览模态框
+function showImagePreview(imageUrl, prompt = '') {
+    // 移除已存在的模态框
+    const existingModal = document.getElementById('image-preview-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // 创建模态框
+    const modal = document.createElement('div');
+    modal.id = 'image-preview-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <button class="modal-close" title="关闭">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+            <img src="${imageUrl}" alt="预览大图" class="preview-image-full">
+            ${prompt ? `<div class="preview-prompt">${prompt}</div>` : ''}
+        </div>
+    `;
+
+    // 添加到页面
+    document.body.appendChild(modal);
+
+    // 点击关闭
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal || e.target.closest('.modal-close')) {
+            modal.remove();
+        }
+    });
+
+    // ESC 键关闭
+    const escapeHandler = (e) => {
+        if (e.key === 'Escape') {
+            modal.remove();
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    };
+    document.addEventListener('keydown', escapeHandler);
 }
 
 // 下载图片
@@ -2175,68 +2557,85 @@ function handleSketchMultipleImages(files) {
 
 // 渲染线稿模式图片画廊
 function renderSketchImageGallery() {
-    const gallery = elements.sketchImageGallery;
-    if (!gallery) return;
+    // 同时更新主画廊和左侧面板画廊
+    const galleries = [
+        elements.sketchImageGallery,
+        elements.sketchImageGalleryPanel
+    ].filter(Boolean);
 
-    // 清空现有内容
-    gallery.innerHTML = '';
+    if (galleries.length === 0) return;
 
-    // 渲染已上传的图片
-    sketchUploadedImages.forEach((img, index) => {
-        const item = document.createElement('div');
-        item.className = 'gallery-item';
-        if (sketchSelectedImageIndex === index) {
-            item.classList.add('selected');
-        }
-        item.dataset.index = index;
+    galleries.forEach((gallery) => {
+        // 清空现有内容
+        gallery.innerHTML = '';
 
-        const image = document.createElement('img');
-        image.src = img.data;
-        image.alt = img.name || `图片 ${index + 1}`;
-        image.draggable = false;
+        // 渲染已上传的图片
+        sketchUploadedImages.forEach((img, index) => {
+            const item = document.createElement('div');
+            item.className = 'gallery-item';
+            if (sketchSelectedImageIndex === index) {
+                item.classList.add('selected');
+            }
+            item.dataset.index = index;
 
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'remove-btn';
-        removeBtn.title = '删除';
-        removeBtn.textContent = '×';
+            const image = document.createElement('img');
+            image.src = img.data;
+            image.alt = img.name || `图片 ${index + 1}`;
+            image.draggable = false;
 
-        const currentIndex = index;
-        removeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            removeSketchUploadedImage(currentIndex);
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.title = '删除';
+            removeBtn.textContent = '×';
+
+            const currentIndex = index;
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeSketchUploadedImage(currentIndex);
+            });
+
+            item.appendChild(image);
+            item.appendChild(removeBtn);
+
+            item.addEventListener('click', () => {
+                selectSketchImage(currentIndex);
+                renderSketchImageGallery();
+            });
+
+            gallery.appendChild(item);
         });
 
-        item.appendChild(image);
-        item.appendChild(removeBtn);
+        // 创建添加按钮
+        const newAddBtn = document.createElement('div');
+        newAddBtn.className = 'gallery-item gallery-add';
+        newAddBtn.title = '添加参考图片';
+        newAddBtn.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+        `;
 
-        item.addEventListener('click', () => {
-            selectSketchImage(currentIndex);
-            renderSketchImageGallery();
+        newAddBtn.addEventListener('click', () => {
+            // 根据画廊类型选择对应的 input 元素
+            const inputElement = gallery.id.includes('panel')
+                ? elements.sketchMultiImageInputPanel
+                : elements.sketchMultiImageInput;
+            if (inputElement) {
+                inputElement.click();
+            }
         });
 
-        gallery.appendChild(item);
+        gallery.appendChild(newAddBtn);
     });
 
-    // 创建添加按钮
-    const newAddBtn = document.createElement('div');
-    newAddBtn.className = 'gallery-item gallery-add';
-    newAddBtn.id = 'sketch-add-image-btn';
-    newAddBtn.title = '添加参考图片';
-    newAddBtn.innerHTML = `
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-    `;
-
-    newAddBtn.addEventListener('click', () => {
-        if (elements.sketchMultiImageInput) {
-            elements.sketchMultiImageInput.click();
-        }
-    });
-
-    gallery.appendChild(newAddBtn);
-    elements.sketchAddImageBtn = newAddBtn;
+    // 更新按钮引用
+    if (elements.sketchImageGallery) {
+        elements.sketchAddImageBtn = elements.sketchImageGallery.querySelector('.gallery-add');
+    }
+    if (elements.sketchImageGalleryPanel) {
+        elements.sketchAddImageBtnPanel = elements.sketchImageGalleryPanel.querySelector('.gallery-add');
+    }
 }
 
 // 选择线稿模式图片

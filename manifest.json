@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "Qwen Canvas Workbench",
+    "name": "clouder",
     "version": "2.0.0",
     "description": "AI-powered Canvas workbench with style transfer, sketch-to-image, and local editing using Qwen API",
     "author": "Qwen Canvas Workbench Team",

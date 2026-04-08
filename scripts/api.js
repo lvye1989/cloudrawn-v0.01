@@ -882,6 +882,116 @@ async function inpaintImageUnified(params) {
     return inpaintImage(params);
 }
 
+/**
+ * 优化提示词 - 使用 Qwen3.5 模型将中文提示词优化并翻译成英文
+ * @param {Object} params - 参数
+ * @param {string} params.prompt - 需要优化的中文提示词
+ * @param {string} params.apiKey - 阿里云百炼 API Key
+ * @param {string} [params.negativePrompt] - 负面提示词（可选）
+ * @param {string} [params.scene] - 场景描述，用于更好地优化提示词
+ * @returns {Promise<Object>} 优化后的提示词对象 { optimizedPrompt, optimizedNegative }
+ */
+async function optimizePrompt(params) {
+    const { prompt, apiKey, negativePrompt = '', scene = '' } = params;
+
+    if (!prompt || typeof prompt !== 'string') {
+        throw new Error('提示词不能为空');
+    }
+
+    if (!apiKey) {
+        throw new Error('API Key 不能为空');
+    }
+
+    // 构建系统提示词
+    const systemPrompt = `你是一个专业的AI图像提示词优化专家。你的任务是将用户的中文描述优化成高质量的英文提示词，用于AI图像生成。
+
+优化要求：
+1. 将中文描述翻译成准确、流畅的英文
+2. 补充和丰富细节描述，使提示词更加具体和生动
+3. 添加合适的艺术风格描述（如：photorealistic, anime, oil painting, digital art等）
+4. 添加光线、氛围、构图等描述（如：soft lighting, dramatic shadows, wide angle, close-up等）
+5. 保持提示词简洁但富有表现力，通常50-150个单词
+6. 如果用户没有明确指定风格，默认使用写实风格（photorealistic）
+
+请按以下JSON格式返回结果：
+{
+  "optimized_prompt": "优化后的英文提示词",
+  "optimized_negative": "优化的负面提示词（可选，用于避免常见的质量问题）"
+}`;
+
+    // 构建用户提示词
+    let userContent = `请优化以下提示词：\n\n${prompt}`;
+    if (negativePrompt) {
+        userContent += `\n\n当前负面提示词：${negativePrompt}`;
+    }
+    if (scene) {
+        userContent += `\n\n场景：${scene}`;
+    }
+
+    const requestBody = {
+        model: 'qwen-plus',
+        input: {
+            messages: [
+                {
+                    role: 'system',
+                    content: [{ text: systemPrompt }]
+                },
+                {
+                    role: 'user',
+                    content: [{ text: userContent }]
+                }
+            ]
+        },
+        parameters: {
+            result_format: 'message'
+        }
+    };
+
+    try {
+        const response = await fetchWithTimeout(
+            'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify(requestBody)
+            },
+            30000 // 30秒超时
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `API请求失败: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // 解析响应
+        const content = data.output?.choices?.[0]?.message?.content;
+        if (!content || !Array.isArray(content) || !content[0]?.text) {
+            throw new Error('API响应格式不正确');
+        }
+
+        // 解析JSON结果
+        const jsonText = content[0].text;
+        const result = JSON.parse(jsonText);
+
+        return {
+            optimizedPrompt: result.optimized_prompt || prompt,
+            optimizedNegative: result.optimized_negative || negativePrompt
+        };
+    } catch (error) {
+        console.error('提示词优化失败:', error);
+        // 如果优化失败，返回原始提示词
+        return {
+            optimizedPrompt: prompt,
+            optimizedNegative: negativePrompt
+        };
+    }
+}
+
 // 导出 API 函数
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -895,6 +1005,8 @@ if (typeof module !== 'undefined' && module.exports) {
         generateWithReference,
         inpaintImage,
         multiImageEdit,
+        // Qwen 文字优化
+        optimizePrompt,
         // FLUX API
         generateImageFlux,
         // 统一入口
