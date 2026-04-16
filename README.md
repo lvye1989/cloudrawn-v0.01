@@ -1,6 +1,8 @@
 # Cloudrawn - 极简AI 图片生成工作台 / Minimalist AI Image Generation Workbench
+全球第一个带有建筑大师skill的图片生成平台
+<img width="920" height="616" alt="截屏2026-04-17 00 10 59" src="https://github.com/user-attachments/assets/73e236c2-1ee9-481d-b739-7cf89503b756" />
 
-> 一个基于 Chrome 扩展的 AI 图片生成与编辑工具，支持阿里云百炼 Qwen 和 Replicate FLUX 2 Pro 多模型切换，提供风格迁移、线稿转图片、局部蒙版编辑等高级功能。
+> 一个基于 Chrome 扩展的 AI 图片生成与编辑工具，支持阿里云百炼 Qwen 和 nanobanana_2 多模型切换，提供风格迁移、线稿转图片、局部蒙版编辑等高级功能。
 >
 > A Chrome extension-based AI image generation and editing tool, supporting multi-model switching between Alibaba Cloud Bailian Qwen and Replicate FLUX 2 Pro, with advanced features like style transfer, sketch-to-image, and local mask editing.
 
