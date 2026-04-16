@@ -6,7 +6,7 @@
 // 常量定义
 const CONSTANTS = {
     CANVAS_SIZE: 512,
-    MAX_PROMPT_LENGTH: 1000,
+    MAX_PROMPT_LENGTH: 4000,
     DEBOUNCE_DELAY: 100,
     MIN_BRUSH_SIZE: 1,
     MAX_BRUSH_SIZE: 100,
@@ -30,12 +30,14 @@ const elements = {};
 const state = {
     currentMode: 'home',
     apiKey: '',
+    currentModel: 'qwen', // 当前选择的模型
     isDrawing: false,
     currentTool: 'brush',
     sketchColor: '#000000',
     sketchSize: CONSTANTS.DEFAULT_SKETCH_SIZE,
     maskSize: CONSTANTS.DEFAULT_MASK_SIZE,
-    styleImage: null,
+    styleImage: null,         // 风格参考图（风格迁移模式）
+    styleBaseImage: null,     // 底图（风格迁移模式）
     baseImage: null,
     maskImage: null,
     lastPoint: null,
@@ -135,6 +137,14 @@ function cacheElements() {
     elements.homeAddImageBtn = document.getElementById('home-add-image-btn');
     elements.homeMultiImageInput = document.getElementById('home-multi-image-input');
 
+    // Nano Banana 2 专属参数
+    elements.nanobananaParams = document.getElementById('nanobanana-params');
+    elements.nanobananaAspectRatio = document.getElementById('nanobanana-aspect-ratio');
+    elements.nanobananaResolution = document.getElementById('nanobanana-resolution');
+    elements.nanobananaOutputFormat = document.getElementById('nanobanana-output-format');
+    elements.nanobananaGoogleSearch = document.getElementById('nanobanana-google-search');
+    elements.nanobananaImageSearch = document.getElementById('nanobanana-image-search');
+
     // 可折叠区域
     elements.collapsibleHeaders = document.querySelectorAll('.collapsible-header');
 
@@ -149,15 +159,17 @@ function cacheElements() {
     elements.sketchPlaceholder = document.getElementById('sketch-placeholder');
     elements.sketchRemove = document.getElementById('sketch-remove');
 
-    // 风格迁移模式
-    elements.styleUploadZone = document.getElementById('style-upload-zone');
-    elements.styleInput = document.getElementById('style-input');
-    elements.stylePreview = document.getElementById('style-preview');
-
-    // 多图片上传（风格迁移模式）
-    elements.imageGallery = document.getElementById('image-gallery');
-    elements.addImageBtn = document.getElementById('add-image-btn');
-    elements.multiImageInput = document.getElementById('multi-image-input');
+    // 风格迁移模式 - 双图上传
+    elements.styleBaseUpload = document.getElementById('style-base-upload');
+    elements.styleBaseInput = document.getElementById('style-base-input');
+    elements.styleBasePreview = document.getElementById('style-base-preview');
+    elements.styleBasePlaceholder = document.getElementById('style-base-placeholder');
+    elements.styleBaseRemove = document.getElementById('style-base-remove');
+    elements.styleRefUpload = document.getElementById('style-ref-upload');
+    elements.styleRefInput = document.getElementById('style-ref-input');
+    elements.styleRefPreview = document.getElementById('style-ref-preview');
+    elements.styleRefPlaceholder = document.getElementById('style-ref-placeholder');
+    elements.styleRefRemove = document.getElementById('style-ref-remove');
 
     // 线稿模式多图片上传
     elements.sketchImageGallery = document.getElementById('sketch-image-gallery-panel');
@@ -181,6 +193,20 @@ function cacheElements() {
     elements.styleImageSizePanel = document.getElementById('style-image-size-panel');
     elements.styleStrengthPanel = document.getElementById('style-strength-panel');
     elements.styleOptimizeBtn = document.getElementById('style-optimize-btn');
+    // 风格迁移模式 - 新增参数
+    elements.styleNegativePromptPanel = document.getElementById('style-negative-prompt-panel');
+    elements.styleImageQualityPanel = document.getElementById('style-image-quality-panel');
+    elements.styleImageCountPanel = document.getElementById('style-image-count-panel');
+    elements.stylePromptExtendPanel = document.getElementById('style-prompt-extend-panel');
+    // 风格迁移模式 - 状态显示
+    elements.styleStatus = document.getElementById('style-status');
+    // Nano Banana 2 专属参数
+    elements.styleNanobananaParams = document.getElementById('style-nanobanana-params');
+    elements.styleNanobananaAspectRatio = document.getElementById('style-nanobanana-aspect-ratio');
+    elements.styleNanobananaResolution = document.getElementById('style-nanobanana-resolution');
+    elements.styleNanobananaOutputFormat = document.getElementById('style-nanobanana-output-format');
+    elements.styleNanobananaGoogleSearch = document.getElementById('style-nanobanana-google-search');
+    elements.styleNanobananaImageSearch = document.getElementById('style-nanobanana-image-search');
 
     // 局部修改模式控制面板
     elements.maskSizePanel = document.getElementById('mask-size-panel');
@@ -260,6 +286,7 @@ function cleanup() {
 
     // 清理 state 中的图片数据
     state.styleImage = null;
+    state.styleBaseImage = null;
     state.baseImage = null;
     state.maskImage = null;
     state.maskBaseImage = null;
@@ -361,21 +388,30 @@ function bindEvents() {
         removeSketchRefImage();
     });
 
-    // 风格上传
-    if (elements.styleUploadZone) {
-        addListener(elements.styleUploadZone, 'click', () => elements.styleInput?.click());
-        addListener(elements.styleUploadZone, 'dragover', handleDragOver);
-        addListener(elements.styleUploadZone, 'dragleave', handleDragLeave);
-        addListener(elements.styleUploadZone, 'drop', handleStyleDrop);
+    // 风格迁移模式 - 底图上传
+    if (elements.styleBaseUpload) {
+        addListener(elements.styleBaseUpload, 'click', () => elements.styleBaseInput?.click());
+        addListener(elements.styleBaseUpload, 'dragover', handleDragOver);
+        addListener(elements.styleBaseUpload, 'dragleave', handleDragLeave);
+        addListener(elements.styleBaseUpload, 'drop', handleStyleBaseDrop);
     }
-    addListener(elements.styleInput, 'change', handleStyleSelect);
+    addListener(elements.styleBaseInput, 'change', handleStyleBaseSelect);
+    addListener(elements.styleBaseRemove, 'click', (e) => {
+        e.stopPropagation();
+        removeStyleBaseImage();
+    });
 
-    // 多图片上传（风格迁移模式）- addImageBtn 的事件由 renderImageGallery 管理
-    addListener(elements.multiImageInput, 'change', (e) => {
-        if (e.target.files && e.target.files.length > 0) {
-            handleMultipleImages(e.target.files);
-            e.target.value = ''; // 清空以允许重复选择相同文件
-        }
+    // 风格迁移模式 - 风格参考图上传
+    if (elements.styleRefUpload) {
+        addListener(elements.styleRefUpload, 'click', () => elements.styleRefInput?.click());
+        addListener(elements.styleRefUpload, 'dragover', handleDragOver);
+        addListener(elements.styleRefUpload, 'dragleave', handleDragLeave);
+        addListener(elements.styleRefUpload, 'drop', handleStyleRefDrop);
+    }
+    addListener(elements.styleRefInput, 'change', handleStyleRefSelect);
+    addListener(elements.styleRefRemove, 'click', (e) => {
+        e.stopPropagation();
+        removeStyleRefImage();
     });
 
     // 线稿模式多图片上传
@@ -628,6 +664,34 @@ function bindHomeSettingsEvents() {
         });
     }
 
+    // 模型选择
+    const modelSelector = document.getElementById('model-selector');
+    if (modelSelector) {
+        // 加载保存的模型选择
+        loadSavedModel();
+
+        addListener(modelSelector, 'change', (e) => {
+            const selectedModel = e.target.value;
+            state.currentModel = selectedModel;
+
+            // 保存选择到 storage
+            chrome.storage.local.set({ currentModel: selectedModel });
+
+            // 更新 API Key placeholder
+            updateApiKeyPlaceholder(selectedModel);
+
+            // 调用 api.js 的 switchModel 函数
+            if (typeof switchModel === 'function') {
+                switchModel(selectedModel);
+            }
+
+            // 显示/隐藏 Nano Banana 2 专属参数
+            toggleNanoBananaParams(selectedModel);
+
+            updateStatus(`已切换到: ${e.target.options[e.target.selectedIndex].text}`);
+        });
+    }
+
     // 参考图片上传
     if (elements.homeAddImageBtn) {
         addListener(elements.homeAddImageBtn, 'click', () => {
@@ -651,11 +715,66 @@ function bindHomeSettingsEvents() {
     }
 }
 
-// 主页 API Key 保存
+// 加载保存的模型选择
+async function loadSavedModel() {
+    try {
+        const result = await chrome.storage.local.get('currentModel');
+        const savedModel = result.currentModel || 'qwen';
+        state.currentModel = savedModel;
+
+        const modelSelector = document.getElementById('model-selector');
+        if (modelSelector) {
+            modelSelector.value = savedModel;
+        }
+
+        // 更新 API Key placeholder
+        updateApiKeyPlaceholder(savedModel);
+
+        // 同步 api.js 中的模型
+        if (typeof switchModel === 'function') {
+            switchModel(savedModel);
+        }
+
+        // 显示/隐藏 Nano Banana 2 专属参数
+        toggleNanoBananaParams(savedModel);
+    } catch (error) {
+        console.error('Failed to load model:', error);
+    }
+}
+
+// 显示/隐藏 Nano Banana 2 专属参数
+function toggleNanoBananaParams(model) {
+    if (elements.nanobananaParams) {
+        elements.nanobananaParams.style.display = model === 'nanobanana' ? 'grid' : 'none';
+    }
+    if (elements.styleNanobananaParams) {
+        elements.styleNanobananaParams.style.display = model === 'nanobanana' ? 'grid' : 'none';
+    }
+}
+
+// 根据选择的模型更新 API Key placeholder
+function updateApiKeyPlaceholder(model) {
+    const apiKeyInput = document.getElementById('home-api-key');
+    if (!apiKeyInput) return;
+
+    const placeholders = {
+        qwen: '输入阿里云百炼 API Key',
+        flux: '输入 Replicate API Token',
+        nanobanana: '输入 Replicate API Token'
+    };
+
+    apiKeyInput.placeholder = placeholders[model] || '输入 API Key';
+}
 async function saveHomeApiKey() {
     const key = elements.homeApiKey?.value?.trim();
     if (!key) {
         updateHomeStatus('请输入 API Key', 'error');
+        return;
+    }
+
+    // 验证 API Key 格式（应该只包含 ASCII 可打印字符）
+    if (/[^\x20-\x7E]/.test(key)) {
+        updateHomeStatus('API Key 格式不正确，请检查是否包含中文字符', 'error');
         return;
     }
 
@@ -810,33 +929,54 @@ function autoResizeTextarea(textarea) {
 
 // 优化提示词 - 使用 Qwen3.5 模型（返回原始结果，不自动更新输入框）
 async function optimizePromptText(prompt, negativePrompt = '', scene = '') {
+    // 保存原始值，确保不会被污染
+    const originalPrompt = prompt;
+    const originalNegativePrompt = negativePrompt;
+
     try {
         // 检查是否包含中文字符
         const hasChinese = /[\u4e00-\u9fa5]/.test(prompt);
 
         // 如果没有中文，不进行优化
         if (!hasChinese) {
-            return { prompt, negativePrompt, wasOptimized: false };
+            return { prompt: originalPrompt, negativePrompt: originalNegativePrompt, wasOptimized: false };
         }
 
         updateStatus('正在优化提示词...', 'loading');
 
+        // 使用局部变量，避免污染外部 state
+        const currentApiKey = state.apiKey;
+
+        // 验证 API Key 格式
+        if (!currentApiKey || /[^\x20-\x7E]/.test(currentApiKey)) {
+            console.error('API Key 格式不正确，包含非 ASCII 字符');
+            return { prompt: originalPrompt, negativePrompt: originalNegativePrompt, wasOptimized: false };
+        }
+
         const result = await optimizePrompt({
-            prompt: prompt,
-            apiKey: state.apiKey,
-            negativePrompt: negativePrompt,
+            prompt: originalPrompt,
+            apiKey: currentApiKey,
+            negativePrompt: originalNegativePrompt,
             scene: scene
         });
 
+        // 验证返回结果，确保没有被污染
+        const safeOptimizedPrompt = result.optimizedPrompt && typeof result.optimizedPrompt === 'string'
+            ? result.optimizedPrompt
+            : originalPrompt;
+        const safeOptimizedNegative = result.optimizedNegative && typeof result.optimizedNegative === 'string'
+            ? result.optimizedNegative
+            : originalNegativePrompt;
+
         return {
-            prompt: result.optimizedPrompt,
-            negativePrompt: result.optimizedNegative || negativePrompt,
+            prompt: safeOptimizedPrompt,
+            negativePrompt: safeOptimizedNegative,
             wasOptimized: true
         };
     } catch (error) {
         console.error('提示词优化失败:', error);
-        // 优化失败时返回原始提示词
-        return { prompt, negativePrompt, wasOptimized: false };
+        // 优化失败时返回原始提示词，确保使用保存的原始值
+        return { prompt: originalPrompt, negativePrompt: originalNegativePrompt, wasOptimized: false };
     }
 }
 
@@ -943,6 +1083,15 @@ async function handleHomeGenerate() {
             promptExtend
         };
 
+        // 添加 Nano Banana 2 专属参数
+        if (state.currentModel === 'nanobanana') {
+            params.aspectRatio = elements.nanobananaAspectRatio?.value || '1:1';
+            params.resolution = elements.nanobananaResolution?.value || '1K';
+            params.outputFormat = elements.nanobananaOutputFormat?.value || 'jpg';
+            params.googleSearch = elements.nanobananaGoogleSearch?.checked ?? false;
+            params.imageSearch = elements.nanobananaImageSearch?.checked ?? false;
+        }
+
         updateHomeStatus('正在生成...', 'loading');
         if (elements.homeGenerateBtn) elements.homeGenerateBtn.disabled = true;
 
@@ -951,12 +1100,12 @@ async function handleHomeGenerate() {
         // 如果有选中的参考图片，使用带参考的生成
         if (homeSelectedImageIndex >= 0 && homeUploadedImages[homeSelectedImageIndex]) {
             const refImage = homeUploadedImages[homeSelectedImageIndex].data;
-            result = await generateWithReference({
+            result = await generateWithReferenceUnified({
                 ...params,
                 refImage: refImage
             });
         } else {
-            result = await generateImage(params);
+            result = await generateImageUnified(params);
         }
 
         // 添加到结果预览栏（使用优化后的提示词）
@@ -1001,7 +1150,7 @@ async function handleSketchGenerate() {
 
         // 如果有上传的参考图，使用带参考的生成
         if (state.sketchRefImage) {
-            result = await generateWithReference({
+            result = await generateWithReferenceUnified({
                 prompt: optimized.prompt,
                 apiKey: state.apiKey,
                 referenceImage: state.sketchRefImage,
@@ -1009,7 +1158,7 @@ async function handleSketchGenerate() {
             });
         } else {
             // 否则使用普通线稿生成
-            result = await generateWithReference({
+            result = await generateWithReferenceUnified({
                 prompt: optimized.prompt,
                 apiKey: state.apiKey,
                 referenceImage: sketchData
@@ -1029,42 +1178,85 @@ async function handleSketchGenerate() {
 async function handleStyleGenerate() {
     try {
         if (!state.apiKey) {
-            updateStatus('请先设置 API Key', 'error');
+            updateStyleStatus('请先设置 API Key', 'error');
+            return;
+        }
+
+        if (!state.styleBaseImage) {
+            updateStyleStatus('请先上传底图', 'error');
             return;
         }
 
         if (!state.styleImage) {
-            updateStatus('请先上传风格参考图', 'error');
+            updateStyleStatus('请先上传风格参考图', 'error');
             return;
         }
 
         const promptInput = elements.stylePromptPanel || document.getElementById('style-prompt');
-        const prompt = promptInput?.value?.trim() || '应用参考图风格生成新图像';
+        const prompt = promptInput?.value?.trim() || '保持底图构图，应用参考图的风格';
 
         const sizeSelect = elements.styleImageSizePanel || document.getElementById('style-image-size');
         const size = sizeSelect?.value || '1024*1024';
 
-        // 优化提示词（中译英+优化）
-        const optimized = await optimizePromptText(prompt, '', '风格迁移模式');
+        // 新增参数收集
+        const negativePrompt = elements.styleNegativePromptPanel?.value?.trim() || '';
+        const quality = elements.styleImageQualityPanel?.value || 'high';
+        const count = parseInt(elements.styleImageCountPanel?.value || '1');
+        const promptExtend = elements.stylePromptExtendPanel?.checked ?? true;
+
+        // 优化提示词（传入负面提示词）
+        const optimized = await optimizePromptText(prompt, negativePrompt, '风格迁移模式');
         if (optimized.wasOptimized) {
-            updateStatus('提示词已优化，正在生成...');
+            updateStyleStatus('提示词已优化，正在生成...');
         }
 
-        updateStatus('正在生成...', 'loading');
+        updateStyleStatus('图像正在生成...', 'loading');
+        if (elements.styleGeneratePanel) elements.styleGeneratePanel.disabled = true;
 
-        const result = await generateWithReference({
-            referenceImage: state.styleImage,
+        // 构建参数对象
+        const params = {
+            baseImage: state.styleBaseImage,    // 底图（保持构图）
+            referenceImage: state.styleImage,   // 风格参考图
             prompt: optimized.prompt,
             size,
-            apiKey: state.apiKey
-        });
+            apiKey: state.apiKey,
+            negativePrompt: optimized.negativePrompt,
+            quality,
+            promptExtend
+        };
 
-        addResult(result, optimized.prompt);
-        updateStatus(optimized.wasOptimized ? '提示词已优化，生成成功！' : '生成成功！', 'success');
+        // 添加 Nano Banana 2 专属参数
+        if (state.currentModel === 'nanobanana') {
+            params.aspectRatio = elements.styleNanobananaAspectRatio?.value || 'match_input_image';
+            params.resolution = elements.styleNanobananaResolution?.value || '1K';
+            params.outputFormat = elements.styleNanobananaOutputFormat?.value || 'jpg';
+            params.googleSearch = elements.styleNanobananaGoogleSearch?.checked ?? false;
+            params.imageSearch = elements.styleNanobananaImageSearch?.checked ?? false;
+        }
+
+        // 批量生成支持
+        const results = [];
+        for (let i = 0; i < count; i++) {
+            const result = await generateWithReferenceUnified(params);
+            results.push(result);
+            addResult(result, optimized.prompt);
+        }
+
+        updateStyleStatus(optimized.wasOptimized ? '提示词已优化，生成成功！' : '生成成功！', 'success');
 
     } catch (error) {
         console.error('Style generation error:', error);
-        updateStatus('生成失败: ' + error.message, 'error');
+        updateStyleStatus('生成失败: ' + error.message, 'error');
+    } finally {
+        if (elements.styleGeneratePanel) elements.styleGeneratePanel.disabled = false;
+    }
+}
+
+// 更新风格迁移模式状态
+function updateStyleStatus(message, type = '') {
+    if (elements.styleStatus) {
+        elements.styleStatus.textContent = message;
+        elements.styleStatus.className = 'home-status' + (type ? ` ${type}` : '');
     }
 }
 
@@ -1151,7 +1343,7 @@ async function handleMaskGenerate() {
             });
         } else {
             // 否则使用普通的局部重绘
-            result = await inpaintImage({
+            result = await inpaintImageUnified({
                 ...params,
                 baseImage: baseImageData,
                 maskImage: maskData
@@ -1773,6 +1965,184 @@ function loadStyleImage(file) {
     }
 }
 
+// 风格迁移模式 - 底图上传处理
+function handleStyleBaseDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove('drag-over');
+
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        loadStyleBaseImage(file);
+    } else {
+        updateStatus('请上传图片文件', 'error');
+    }
+}
+
+function handleStyleBaseSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+        loadStyleBaseImage(file);
+        e.target.value = ''; // 清空以允许重复选择
+    }
+}
+
+function loadStyleBaseImage(file) {
+    if (!file.type.startsWith('image/')) {
+        updateStatus('请上传有效的图片文件', 'error');
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        try {
+            state.styleBaseImage = e.target.result;
+
+            // 更新预览
+            if (elements.styleBasePreview) {
+                elements.styleBasePreview.src = state.styleBaseImage;
+                elements.styleBasePreview.hidden = false;
+            }
+            if (elements.styleBasePlaceholder) {
+                elements.styleBasePlaceholder.hidden = true;
+            }
+            if (elements.styleBaseUpload) {
+                elements.styleBaseUpload.classList.add('has-image');
+            }
+            if (elements.styleBaseRemove) {
+                elements.styleBaseRemove.hidden = false;
+            }
+
+            updateStatus('底图已加载');
+        } catch (err) {
+            console.error('Style base image processing error:', err);
+            updateStatus('图片处理失败: ' + err.message, 'error');
+        }
+    };
+
+    reader.onerror = () => {
+        updateStatus('图片读取失败', 'error');
+    };
+
+    try {
+        reader.readAsDataURL(file);
+    } catch (err) {
+        console.error('FileReader error:', err);
+        updateStatus('图片读取失败', 'error');
+    }
+}
+
+function removeStyleBaseImage() {
+    state.styleBaseImage = null;
+
+    // 清理预览
+    if (elements.styleBasePreview) {
+        elements.styleBasePreview.src = '';
+        elements.styleBasePreview.hidden = true;
+    }
+    if (elements.styleBasePlaceholder) {
+        elements.styleBasePlaceholder.hidden = false;
+    }
+    if (elements.styleBaseUpload) {
+        elements.styleBaseUpload.classList.remove('has-image');
+    }
+    if (elements.styleBaseRemove) {
+        elements.styleBaseRemove.hidden = true;
+    }
+
+    updateStatus('底图已移除');
+}
+
+// 风格迁移模式 - 风格参考图上传处理
+function handleStyleRefDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove('drag-over');
+
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        loadStyleRefImage(file);
+    } else {
+        updateStatus('请上传图片文件', 'error');
+    }
+}
+
+function handleStyleRefSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+        loadStyleRefImage(file);
+        e.target.value = ''; // 清空以允许重复选择
+    }
+}
+
+function loadStyleRefImage(file) {
+    if (!file.type.startsWith('image/')) {
+        updateStatus('请上传有效的图片文件', 'error');
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        try {
+            state.styleImage = e.target.result;
+
+            // 更新预览
+            if (elements.styleRefPreview) {
+                elements.styleRefPreview.src = state.styleImage;
+                elements.styleRefPreview.hidden = false;
+            }
+            if (elements.styleRefPlaceholder) {
+                elements.styleRefPlaceholder.hidden = true;
+            }
+            if (elements.styleRefUpload) {
+                elements.styleRefUpload.classList.add('has-image');
+            }
+            if (elements.styleRefRemove) {
+                elements.styleRefRemove.hidden = false;
+            }
+
+            updateStatus('风格参考图已加载');
+        } catch (err) {
+            console.error('Style ref image processing error:', err);
+            updateStatus('图片处理失败: ' + err.message, 'error');
+        }
+    };
+
+    reader.onerror = () => {
+        updateStatus('图片读取失败', 'error');
+    };
+
+    try {
+        reader.readAsDataURL(file);
+    } catch (err) {
+        console.error('FileReader error:', err);
+        updateStatus('图片读取失败', 'error');
+    }
+}
+
+function removeStyleRefImage() {
+    state.styleImage = null;
+
+    // 清理预览
+    if (elements.styleRefPreview) {
+        elements.styleRefPreview.src = '';
+        elements.styleRefPreview.hidden = true;
+    }
+    if (elements.styleRefPlaceholder) {
+        elements.styleRefPlaceholder.hidden = false;
+    }
+    if (elements.styleRefUpload) {
+        elements.styleRefUpload.classList.remove('has-image');
+    }
+    if (elements.styleRefRemove) {
+        elements.styleRefRemove.hidden = true;
+    }
+
+    updateStatus('风格参考图已移除');
+}
+
 // 局部修改模式 - 底图上传处理
 function handleMaskBaseDrop(e) {
     e.preventDefault();
@@ -2033,7 +2403,7 @@ function updateMaskGenerateButtonState() {
 // API Key 管理（使用主页设置面板）
 async function initializeApiKey() {
     try {
-        const result = await chrome.storage.local.get('apiKey');
+        const result = await chrome.storage.local.get(['apiKey', 'currentModel']);
         if (result.apiKey) {
             state.apiKey = result.apiKey;
             if (elements.homeApiKey) {
@@ -2041,8 +2411,23 @@ async function initializeApiKey() {
             }
             updateStatus('API Key 已加载');
         }
+
+        // 加载保存的模型选择
+        if (result.currentModel) {
+            state.currentModel = result.currentModel;
+            const modelSelector = document.getElementById('model-selector');
+            if (modelSelector) {
+                modelSelector.value = result.currentModel;
+            }
+            // 同步 api.js 中的模型
+            if (typeof switchModel === 'function') {
+                switchModel(result.currentModel);
+            }
+            // 更新 placeholder
+            updateApiKeyPlaceholder(result.currentModel);
+        }
     } catch (error) {
-        console.error('Failed to load API key:', error);
+        console.error('Failed to load settings:', error);
     }
 }
 
@@ -2123,13 +2508,13 @@ async function handleGenerate() {
             // 如果有参考图片，使用带参考的生成
             if (sketchUploadedImages.length > 0 && sketchSelectedImageIndex >= 0) {
                 const refImage = sketchUploadedImages[sketchSelectedImageIndex].data;
-                result = await generateWithReference({
+                result = await generateWithReferenceUnified({
                     ...params,
                     sketchImage: sketchData,
                     refImage: refImage
                 });
             } else {
-                result = await generateImage({
+                result = await generateImageUnified({
                     ...params,
                     sketchImage: sketchData
                 });
@@ -2146,13 +2531,13 @@ async function handleGenerate() {
                 ? uploadedImages[selectedImageIndex].data
                 : state.styleImage;
 
-            result = await generateWithReference({
+            result = await generateWithReferenceUnified({
                 ...params,
                 refImage: refImage
             });
         } else {
             // 其他模式使用基础生成
-            result = await generateImage(params);
+            result = await generateImageUnified(params);
         }
 
         // 添加到结果预览栏（使用优化后的提示词）
@@ -2175,6 +2560,14 @@ function updateStatus(message, type = '') {
 
 // 添加生成结果到预览栏
 function addResult(imageUrl, prompt) {
+    console.log('Adding result to gallery:', { imageUrl, prompt });
+
+    if (!imageUrl) {
+        console.error('No image URL provided to addResult');
+        updateStatus('生成失败: 未获取到图片 URL', 'error');
+        return;
+    }
+
     const result = {
         url: imageUrl,
         prompt: prompt,
@@ -2226,6 +2619,13 @@ function renderResults() {
         img.src = result.url;
         img.alt = '生成结果';
         img.loading = 'lazy';
+        img.onerror = () => {
+            console.error('Failed to load image:', result.url);
+            img.alt = '图片加载失败';
+        };
+        img.onload = () => {
+            console.log('Image loaded successfully:', result.url);
+        };
 
         // 放大预览按钮
         const expandBtn = document.createElement('button');
@@ -2248,6 +2648,8 @@ function renderResults() {
             // 验证 URL 安全性
             if (result.url && (result.url.startsWith('http://') || result.url.startsWith('https://') || result.url.startsWith('data:'))) {
                 window.open(result.url, '_blank', 'noopener,noreferrer');
+            } else {
+                console.error('Invalid URL format:', result.url);
             }
         });
 

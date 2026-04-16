@@ -1,6 +1,6 @@
 /**
  * Multi-Model Image API Client
- * 支持多模型切换：阿里云百炼 Qwen 和 Replicate FLUX 2 Pro
+ * 支持多模型切换：阿里云百炼 Qwen 和 Replicate (FLUX 2 Pro, Nano Banana 2)
  */
 
 // 模型配置
@@ -12,7 +12,7 @@ const MODEL_CONFIGS = {
         model: 'qwen-image-2.0-pro',
         endpoint: '/services/aigc/multimodal-generation/generation',
         timeout: 60000,
-        maxPromptLength: 1000,
+        maxPromptLength: 4000,
         maxRetries: 3,
         retryDelay: 1000,
         validSizes: ['512*512', '1024*1024', '1024*768', '768*1024'],
@@ -26,7 +26,7 @@ const MODEL_CONFIGS = {
         model: 'black-forest-labs/flux-2-pro',
         endpoint: '/predictions',
         timeout: 120000, // FLUX 需要更长时间
-        maxPromptLength: 2000,
+        maxPromptLength: 4000,
         maxRetries: 3,
         retryDelay: 2000,
         validSizes: ['1024x1024', '1024x768', '768x1024', '512x512', '1440x1440', '1440x1024', '1024x1440'],
@@ -38,6 +38,26 @@ const MODEL_CONFIGS = {
             output_format: 'webp',
             output_quality: 90,
             safety_tolerance: 2
+        }
+    },
+    nanobanana: {
+        name: 'Nano Banana 2',
+        provider: 'Replicate',
+        baseUrl: 'https://api.replicate.com/v1',
+        model: 'google/nano-banana-2',
+        endpoint: '/predictions',
+        timeout: 120000,
+        maxPromptLength: 4000,
+        maxRetries: 3,
+        retryDelay: 2000,
+        validSizes: ['512*512', '1024*1024', '1024*768', '768*1024'],
+        requiresApiKey: true,
+        apiKeyPlaceholder: '输入 Replicate API Token',
+        // Nano Banana 特有参数
+        defaultParameters: {
+            aspect_ratio: '1:1',
+            output_format: 'jpg',
+            resolution: '2K'
         }
     }
 };
@@ -549,6 +569,398 @@ function parseQwenResponse(data) {
     throw new Error('API 返回中未找到图片 URL');
 }
 
+
+/**
+ * 调用 Nano Banana 2 API 生成图片
+ * @param {Object} params - 生成参数
+ * @param {string} params.prompt - 提示词
+ * @param {string} params.apiKey - Replicate API Token
+ * @param {string} [params.size] - 图片尺寸
+ * @param {string} [params.aspectRatio] - 宽高比 (1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9)
+ * @param {string} [params.resolution] - 分辨率 (512px, 1K, 2K, 4K)
+ * @param {string} [params.outputFormat] - 输出格式 (jpg, png)
+ * @param {boolean} [params.googleSearch] - 是否使用 Google Web Search
+ * @param {boolean} [params.imageSearch] - 是否使用 Google Image Search
+ * @returns {Promise<string>} 生成的图片 URL
+ * @throws {Error} 当参数无效或 API 调用失败时抛出
+ */
+async function generateImageNanoBanana(params) {
+    const {
+        prompt,
+        apiKey,
+        size,
+        aspectRatio = '1:1',
+        resolution = '1K',
+        outputFormat = 'jpg',
+        googleSearch = false,
+        imageSearch = false
+    } = params;
+
+    // 获取当前模型配置
+    const config = getCurrentConfig();
+
+    // 参数验证
+    validateParams(params);
+
+    // 将 size 转换为 aspect_ratio（如果传入了 size 且 aspectRatio 不是冒号格式）
+    let finalAspectRatio = aspectRatio;
+    if (size && !aspectRatio.includes(':')) {
+        // 完整的尺寸映射表，根据 banana.md 文档
+        const sizeMap = {
+            '1024*1024': '1:1',
+            '1024*768': '4:3',
+            '768*1024': '3:4',
+            '512*512': '1:1',
+            '1024*512': '2:1',
+            '512*1024': '1:2',
+            '1440*1024': '16:9',
+            '1024*1440': '9:16'
+        };
+        finalAspectRatio = sizeMap[size] || '1:1';
+    }
+
+    // 构建请求体（Replicate API 格式 - Nano Banana 2）
+    // 根据 banana.md 文档，请求体只包含 input 字段
+    const requestBody = {
+        input: {
+            prompt: String(prompt),
+            aspect_ratio: String(finalAspectRatio),
+            resolution: String(resolution),
+            output_format: String(outputFormat)
+        }
+    };
+
+    // 添加可选参数（根据文档）
+    if (googleSearch) {
+        requestBody.input.google_search = true;
+    }
+    if (imageSearch) {
+        requestBody.input.image_search = true;
+    }
+
+    console.log('Nano Banana 2 - Sending request body:', JSON.stringify(requestBody, null, 2));
+
+    // 调用 Replicate API
+    return callNanoBananaApi(requestBody, apiKey);
+}
+
+/**
+ * 调用 Nano Banana 2 API（根据文档使用 /v1/models/.../predictions 端点）
+ * @param {Object} requestBody - 请求体（只包含 input 字段）
+ * @param {string} apiKey - API Token
+ * @param {number} retryCount - 当前重试次数
+ * @returns {Promise<string>} 生成的图片 URL
+ */
+async function callNanoBananaApi(requestBody, apiKey, retryCount = 0) {
+    // 简单验证 apiKey
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.length < 10) {
+        throw new Error('Invalid API Key: API Key 格式不正确或长度不足');
+    }
+
+    const config = MODEL_CONFIGS.nanobanana;
+    // 使用模型特定端点: /v1/models/{owner}/{model}/predictions
+    const url = `${config.baseUrl}/models/${config.model}/predictions`;
+
+    console.log(`${config.name} API Request URL:`, url);
+    console.log(`${config.name} API Request Body:`, JSON.stringify(requestBody, null, 2));
+    console.log(`${config.name} API Key (first 10 chars):`, apiKey ? apiKey.substring(0, 10) + '...' : 'EMPTY');
+
+    try {
+        // 使用 background.js 代理请求，绕过 CORS 限制
+        const response = await chrome.runtime.sendMessage({
+            action: 'proxyApiRequest',
+            url: url,
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'wait'  // 同步等待结果
+            },
+            body: requestBody
+        });
+
+        console.log(`${config.name} Proxy Response:`, response);
+
+        if (!response.success) {
+            // 显示详细的错误信息
+            let errorDetail = response.error || 'Proxy request failed';
+            // 检查 detail 字段
+            if (response.detail) {
+                errorDetail = typeof response.detail === 'string'
+                    ? response.detail
+                    : JSON.stringify(response.detail);
+            }
+            // 检查 data.detail
+            else if (response.data && response.data.detail) {
+                errorDetail = typeof response.data.detail === 'string'
+                    ? response.data.detail
+                    : JSON.stringify(response.data.detail);
+            }
+            // 检查 data.error
+            else if (response.data && response.data.error) {
+                errorDetail = typeof response.data.error === 'string'
+                    ? response.data.error
+                    : JSON.stringify(response.data.error);
+            }
+            // 如果是对象，转换为字符串
+            else if (response.data && typeof response.data === 'object') {
+                errorDetail = JSON.stringify(response.data);
+            }
+            console.error(`${config.name} API Error Detail:`, errorDetail);
+            throw new Error(errorDetail);
+        }
+
+        // 检查 API 返回的错误
+        if (response.data && response.data.error) {
+            throw new Error(`API Error: ${JSON.stringify(response.data.error)}`);
+        }
+
+        const prediction = response.data;
+
+        // 如果使用 Prefer: wait，结果可能已经就绪
+        if (prediction.status === 'succeeded') {
+            return parseReplicateResponse(prediction);
+        }
+
+        // 否则需要轮询
+        return await pollNanoBananaPrediction(prediction.id, apiKey, config);
+
+    } catch (error) {
+        console.error(`${config.name} API Error:`, error);
+
+        const shouldRetry = retryCount < config.maxRetries &&
+            (error.isRetryable ||
+                error.message?.includes('超时') ||
+                error.message?.includes('network') ||
+                error.name === 'TypeError');
+
+        if (shouldRetry) {
+            const baseDelay = config.retryDelay * Math.pow(2, retryCount);
+            const jitter = Math.random() * 1000;
+            const delayMs = Math.min(baseDelay + jitter, 30000);
+
+            console.warn(`${config.name} API 调用失败，${Math.round(delayMs)}ms 后进行第 ${retryCount + 1} 次重试...`);
+            await delay(delayMs);
+            return callNanoBananaApi(requestBody, apiKey, retryCount + 1);
+        }
+
+        throw error;
+    }
+}
+
+/**
+ * 轮询 Nano Banana 2 预测结果
+ * @param {string} predictionId - 预测 ID
+ * @param {string} apiKey - API Token
+ * @param {Object} config - 模型配置
+ * @returns {Promise<string>} 图片 URL
+ */
+async function pollNanoBananaPrediction(predictionId, apiKey, config) {
+    const maxPollTime = config.timeout;
+    const pollInterval = 2000;
+    const startTime = Date.now();
+
+    console.log(`${config.name} Starting polling for prediction:`, predictionId);
+
+    while (Date.now() - startTime < maxPollTime) {
+        await delay(pollInterval);
+
+        // 轮询时使用标准端点 /v1/predictions/{id}，而不是模型特定端点
+        const pollUrl = `${config.baseUrl}/predictions/${predictionId}`;
+        console.log(`${config.name} Polling URL:`, pollUrl);
+
+        try {
+            const response = await chrome.runtime.sendMessage({
+                action: 'proxyApiRequest',
+                url: pollUrl,
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            });
+
+            console.log(`${config.name} Poll Response:`, response);
+
+            if (!response.success) {
+                throw new Error(response.error || 'Poll request failed');
+            }
+
+            const prediction = response.data;
+            console.log(`${config.name} Poll Status:`, prediction.status);
+
+            if (prediction.status === 'succeeded') {
+                console.log(`${config.name} Prediction succeeded:`, prediction);
+                return parseReplicateResponse(prediction);
+            }
+
+            if (prediction.status === 'failed') {
+                console.error(`${config.name} Prediction failed:`, prediction.error);
+                throw new Error(`${config.name} 预测失败: ${prediction.error || '未知错误'}`);
+            }
+
+            if (prediction.status === 'canceled') {
+                throw new Error(`${config.name} 预测被取消`);
+            }
+        } catch (error) {
+            console.error(`${config.name} Poll Error:`, error);
+            throw error;
+        }
+    }
+
+    throw new Error(`${config.name} 预测超时`);
+}
+
+/**
+ * 调用 Replicate API（通用函数）
+ * @param {Object} requestBody - 请求体
+ * @param {string} apiKey - API Token
+ * @param {Object} config - 模型配置
+ * @param {number} retryCount - 当前重试次数
+ * @returns {Promise<string>} 生成的图片 URL
+ */
+async function callReplicateApi(requestBody, apiKey, config, retryCount = 0) {
+    // 使用 /v1/predictions 端点
+    const url = `${config.baseUrl}/predictions`;
+    console.log(`${config.name} API Request URL:`, url);
+    console.log(`${config.name} API Request Body:`, JSON.stringify(requestBody, null, 2));
+
+    try {
+        // 使用 background.js 代理请求，绕过 CORS 限制
+        const response = await chrome.runtime.sendMessage({
+            action: 'proxyApiRequest',
+            url: url,
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: requestBody
+        });
+
+        console.log(`${config.name} Proxy Response:`, response);
+
+        if (!response.success) {
+            throw new Error(response.error || 'Proxy request failed');
+        }
+
+        const prediction = response.data;
+
+        // Replicate API 是异步的，需要轮询获取结果
+        if (prediction.status === 'succeeded') {
+            return parseReplicateResponse(prediction);
+        }
+
+        // 等待预测完成
+        return await pollReplicatePrediction(prediction.id, apiKey, config);
+
+    } catch (error) {
+        console.error(`${config.name} API Error:`, error);
+
+        const shouldRetry = retryCount < config.maxRetries &&
+            (error.isRetryable ||
+                error.message?.includes('超时') ||
+                error.message?.includes('network') ||
+                error.name === 'TypeError');
+
+        if (shouldRetry) {
+            const baseDelay = config.retryDelay * Math.pow(2, retryCount);
+            const jitter = Math.random() * 1000;
+            const delayMs = Math.min(baseDelay + jitter, 30000);
+
+            console.warn(`${config.name} API 调用失败，${Math.round(delayMs)}ms 后进行第 ${retryCount + 1} 次重试...`);
+            await delay(delayMs);
+            return callReplicateApi(requestBody, apiKey, config, retryCount + 1);
+        }
+
+        throw error;
+    }
+}
+
+/**
+ * 轮询 Replicate 预测结果
+ * @param {string} predictionId - 预测 ID
+ * @param {string} apiKey - API Token
+ * @param {Object} config - 模型配置
+ * @returns {Promise<string>} 图片 URL
+ */
+async function pollReplicatePrediction(predictionId, apiKey, config) {
+    const maxPollTime = config.timeout;
+    const pollInterval = 2000;
+    const startTime = Date.now();
+
+    console.log(`${config.name} Starting polling for prediction:`, predictionId);
+
+    while (Date.now() - startTime < maxPollTime) {
+        await delay(pollInterval);
+
+        const pollUrl = `${config.baseUrl}/predictions/${predictionId}`;
+        console.log(`${config.name} Polling URL:`, pollUrl);
+
+        try {
+            // 使用 background.js 代理请求
+            const response = await chrome.runtime.sendMessage({
+                action: 'proxyApiRequest',
+                url: pollUrl,
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            });
+
+            console.log(`${config.name} Poll Response:`, response);
+
+            if (!response.success) {
+                throw new Error(response.error || 'Poll request failed');
+            }
+
+            const prediction = response.data;
+            console.log(`${config.name} Poll Status:`, prediction.status);
+
+            if (prediction.status === 'succeeded') {
+                console.log(`${config.name} Prediction succeeded:`, prediction);
+                return parseReplicateResponse(prediction);
+            }
+
+            if (prediction.status === 'failed') {
+                console.error(`${config.name} Prediction failed:`, prediction.error);
+                throw new Error(`${config.name} 预测失败: ${prediction.error || '未知错误'}`);
+            }
+
+            if (prediction.status === 'canceled') {
+                throw new Error(`${config.name} 预测被取消`);
+            }
+        } catch (error) {
+            console.error(`${config.name} Poll Error:`, error);
+            throw error;
+        }
+    }
+
+    throw new Error(`${config.name} 预测超时`);
+}
+
+/**
+ * 解析 Replicate API 响应
+ * @param {Object} prediction - 预测结果
+ * @returns {string} 图片 URL
+ */
+function parseReplicateResponse(prediction) {
+    if (!prediction.output) {
+        throw new Error('Replicate 响应中未找到 output 字段');
+    }
+
+    // Nano Banana 返回的是字符串 URL
+    if (typeof prediction.output === 'string') {
+        return prediction.output;
+    }
+
+    // 其他情况可能是数组
+    if (Array.isArray(prediction.output) && prediction.output.length > 0) {
+        return prediction.output[0];
+    }
+
+    throw new Error('Replicate 返回中未找到有效的图片 URL');
+}
+
+
 /**
  * 构建 Qwen 请求体
  * @param {string} prompt - 提示词
@@ -573,53 +985,6 @@ function buildQwenRequestBody(prompt, negativePrompt = '', size = '1024*1024', o
             prompt_extend: Boolean(promptExtend),
             watermark: Boolean(watermark),
             size: validSize
-        }
-    };
-}
-
-/**
- * 构建 FLUX 请求体
- * @param {string} prompt - 提示词
- * @param {string} size - 图片尺寸
- * @param {Object} options - 额外选项
- * @returns {Object}
- */
-function buildFluxRequestBody(prompt, size = '1024x1024', options = {}) {
-    const config = MODEL_CONFIGS.flux;
-    const { aspectRatio = '1:1', outputFormat = 'webp', outputQuality = 90, safetyTolerance = 2 } = options;
-
-    // 将尺寸转换为 aspect_ratio
-    let finalAspectRatio = aspectRatio;
-    if (size && !size.includes('x')) {
-        // Qwen 格式尺寸，转换为 FLUX 格式
-        const sizeMap = {
-            '1024*1024': '1:1',
-            '1024*768': '4:3',
-            '768*1024': '3:4',
-            '512*512': '1:1',
-            '1440*1440': '1:1',
-            '1440*1024': '4:3',
-            '1024*1440': '3:4'
-        };
-        finalAspectRatio = sizeMap[size] || '1:1';
-    } else if (size && size.includes('x')) {
-        // FLUX 格式尺寸
-        const [w, h] = size.split('x').map(Number);
-        if (w && h) {
-            const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
-            const divisor = gcd(w, h);
-            finalAspectRatio = `${w / divisor}:${h / divisor}`;
-        }
-    }
-
-    return {
-        model: config.model,
-        input: {
-            prompt: prompt,
-            aspect_ratio: finalAspectRatio,
-            output_format: outputFormat,
-            output_quality: outputQuality,
-            safety_tolerance: safetyTolerance
         }
     };
 }
@@ -807,6 +1172,53 @@ async function multiImageEdit(params) {
 }
 
 /**
+ * 构建 FLUX 请求体
+ * @param {string} prompt - 提示词
+ * @param {string} size - 图片尺寸
+ * @param {Object} options - 额外选项
+ * @returns {Object}
+ */
+function buildFluxRequestBody(prompt, size = '1024x1024', options = {}) {
+    const config = MODEL_CONFIGS.flux;
+    const { aspectRatio = '1:1', outputFormat = 'webp', outputQuality = 90, safetyTolerance = 2 } = options;
+
+    // 将尺寸转换为 aspect_ratio
+    let finalAspectRatio = aspectRatio;
+    if (size && !size.includes('x')) {
+        // Qwen 格式尺寸，转换为 FLUX 格式
+        const sizeMap = {
+            '1024*1024': '1:1',
+            '1024*768': '4:3',
+            '768*1024': '3:4',
+            '512*512': '1:1',
+            '1440*1440': '1:1',
+            '1440*1024': '4:3',
+            '1024*1440': '3:4'
+        };
+        finalAspectRatio = sizeMap[size] || '1:1';
+    } else if (size && size.includes('x')) {
+        // FLUX 格式尺寸
+        const [w, h] = size.split('x').map(Number);
+        if (w && h) {
+            const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+            const divisor = gcd(w, h);
+            finalAspectRatio = `${w / divisor}:${h / divisor}`;
+        }
+    }
+
+    return {
+        model: config.model,
+        input: {
+            prompt: prompt,
+            aspect_ratio: finalAspectRatio,
+            output_format: outputFormat,
+            output_quality: outputQuality,
+            safety_tolerance: safetyTolerance
+        }
+    };
+}
+
+/**
  * 使用 FLUX 2 Pro 生成图片
  * @param {Object} params - 生成参数
  * @param {string} params.prompt - 提示词
@@ -853,31 +1265,74 @@ async function generateImageUnified(params) {
     if (currentModel === 'flux') {
         return generateImageFlux(params);
     }
+    if (currentModel === 'nanobanana') {
+        return generateImageNanoBanana(params);
+    }
     return generateImage(params);
 }
 
 /**
  * 统一参考图生成入口（根据当前模型选择 API）
  * 注意：FLUX 2 Pro 不支持参考图，会回退到 Qwen
+ * Nano Banana 2 支持参考图
  * @param {Object} params - 生成参数
  * @returns {Promise<string>} 生成的图片 URL
  */
 async function generateWithReferenceUnified(params) {
+    if (currentModel === 'nanobanana') {
+        // Nano Banana 2 支持参考图，使用 image_input 参数
+        const {
+            baseImage, refImage, prompt, apiKey,
+            aspectRatio = 'match_input_image',
+            resolution = '1K',
+            outputFormat = 'jpg',
+            googleSearch = false,
+            imageSearch = false
+        } = params;
+        validateParams(params);
+
+        // 构建 image_input 数组：底图在前，风格参考图在后
+        const imageInputs = [];
+        if (baseImage) imageInputs.push(baseImage);
+        if (refImage) imageInputs.push(refImage);
+
+        // 构建符合文档格式的请求体（只包含 input）
+        const requestBody = {
+            input: {
+                prompt: prompt,
+                image_input: imageInputs,
+                aspect_ratio: aspectRatio,
+                output_format: outputFormat,
+                resolution: resolution
+            }
+        };
+
+        // 添加可选搜索参数
+        if (googleSearch) {
+            requestBody.input.google_search = true;
+        }
+        if (imageSearch) {
+            requestBody.input.image_search = true;
+        }
+
+        return callNanoBananaApi(requestBody, apiKey);
+    }
+
     if (currentModel === 'flux') {
-        console.warn('FLUX 2 Pro 不支持参考图功能，使用 Qwen API');
+        console.warn(`${MODEL_CONFIGS[currentModel]?.name || currentModel} 不支持参考图功能，使用 Qwen API`);
     }
     return generateWithReference(params);
 }
 
 /**
  * 统一局部重绘入口（根据当前模型选择 API）
- * 注意：FLUX 2 Pro 不支持蒙版编辑，会回退到 Qwen
+ * 注意：FLUX 2 Pro 和 Nano Banana 2 不支持蒙版编辑，会回退到 Qwen
  * @param {Object} params - 生成参数
  * @returns {Promise<string>} 生成的图片 URL
  */
 async function inpaintImageUnified(params) {
-    if (currentModel === 'flux') {
-        console.warn('FLUX 2 Pro 不支持蒙版编辑功能，使用 Qwen API');
+    if (currentModel === 'flux' || currentModel === 'nanobanana') {
+        console.warn(`${MODEL_CONFIGS[currentModel]?.name || currentModel} 不支持蒙版编辑功能，使用 Qwen API`);
     }
     return inpaintImage(params);
 }
@@ -947,6 +1402,16 @@ async function optimizePrompt(params) {
         }
     };
 
+    // 验证 API Key 格式
+    if (apiKey && /[^\x20-\x7E]/.test(apiKey)) {
+        console.error('API Key 包含非 ASCII 字符，无法用于 HTTP headers');
+        return {
+            optimizedPrompt: prompt,
+            optimizedNegative: negativePrompt,
+            error: 'API Key 格式不正确，请重新设置'
+        };
+    }
+
     try {
         const response = await fetchWithTimeout(
             'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
@@ -985,9 +1450,11 @@ async function optimizePrompt(params) {
     } catch (error) {
         console.error('提示词优化失败:', error);
         // 如果优化失败，返回原始提示词
+        // 确保返回的是干净的对象，不包含错误信息
         return {
             optimizedPrompt: prompt,
-            optimizedNegative: negativePrompt
+            optimizedNegative: negativePrompt,
+            error: error.message || '优化失败'
         };
     }
 }
@@ -1009,9 +1476,29 @@ if (typeof module !== 'undefined' && module.exports) {
         optimizePrompt,
         // FLUX API
         generateImageFlux,
+        // Nano Banana API
+        generateImageNanoBanana,
+        callNanoBananaApi,
         // 统一入口
         generateImageUnified,
         generateWithReferenceUnified,
         inpaintImageUnified
     };
+} else {
+    // 浏览器环境：将函数暴露到全局作用域
+    window.getCurrentConfig = getCurrentConfig;
+    window.switchModel = switchModel;
+    window.getAvailableModels = getAvailableModels;
+    window.getValidSizes = getValidSizes;
+    window.generateImage = generateImage;
+    window.generateWithReference = generateWithReference;
+    window.inpaintImage = inpaintImage;
+    window.multiImageEdit = multiImageEdit;
+    window.optimizePrompt = optimizePrompt;
+    window.generateImageFlux = generateImageFlux;
+    window.generateImageNanoBanana = generateImageNanoBanana;
+    window.callNanoBananaApi = callNanoBananaApi;
+    window.generateImageUnified = generateImageUnified;
+    window.generateWithReferenceUnified = generateWithReferenceUnified;
+    window.inpaintImageUnified = inpaintImageUnified;
 }

@@ -64,7 +64,7 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error
  */
 
 // ==================== 常量配置 (统一 SNAKE_CASE) ====================
-const ALLOWED_ACTIONS = ['sendToGemini', 'getActiveTab', 'ping'];
+const ALLOWED_ACTIONS = ['sendToGemini', 'getActiveTab', 'proxyApiRequest', 'ping'];
 const GEMINI_DOMAINS = ['gemini.google.com', 'aistudio.google.com'];
 const MAX_CONTENT_SCRIPT_RETRIES = 5;
 const BASE_RETRY_DELAY_MS = 100;
@@ -96,6 +96,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
             case 'getActiveTab':
                 handleGetActiveTab(sendResponse);
+                return true; // 异步处理，保持通道开放
+
+            case 'proxyApiRequest':
+                handleProxyApiRequest(request, sendResponse);
                 return true; // 异步处理，保持通道开放
 
             case 'ping':
@@ -369,6 +373,94 @@ async function handleGetActiveTab(sendResponse) {
         sendResponse({ success: true, tab: tabs[0] });
     } catch (error) {
         sendResponse({ success: false, error: error.message });
+    }
+}
+
+/**
+ * 代理 API 请求（用于绕过 CORS 限制）
+ * @param {Object} request - 请求数据
+ * @param {string} request.url - 目标 URL
+ * @param {string} request.method - HTTP 方法
+ * @param {Object} request.headers - 请求头
+ * @param {Object} request.body - 请求体
+ * @param {SendResponseCallback} sendResponse - 响应回调
+ */
+async function handleProxyApiRequest(request, sendResponse) {
+    try {
+        const { url, method = 'GET', headers = {}, body } = request;
+
+        console.log('Proxying API request:', method, url);
+        console.log('Request headers:', headers);
+        console.log('Request body:', body);
+
+        const fetchOptions = {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                ...headers
+            }
+        };
+
+        if (body && (method === 'POST' || method === 'PUT')) {
+            const bodyString = typeof body === 'string' ? body : JSON.stringify(body);
+            fetchOptions.body = bodyString;
+            console.log('Request body (stringified):', bodyString);
+        }
+
+        console.log('Fetch options (sanitized):', {
+            method: fetchOptions.method,
+            headers: {
+                'Content-Type': fetchOptions.headers['Content-Type'],
+                'Authorization': fetchOptions.headers['Authorization'] ? 'Bearer ***' + fetchOptions.headers['Authorization'].slice(-5) : undefined,
+                'Prefer': fetchOptions.headers['Prefer']
+            },
+            body: fetchOptions.body ? fetchOptions.body.substring(0, 200) + '...' : undefined
+        });
+
+        const response = await fetch(url, fetchOptions);
+        console.log('Response status:', response.status);
+
+        let responseData;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            responseData = await response.json();
+        } else {
+            responseData = await response.text();
+        }
+        console.log('Response data:', responseData);
+
+        // 检查是否成功
+        const isSuccess = response.ok && response.status >= 200 && response.status < 300;
+
+        // 如果失败，尝试提取详细错误信息
+        let errorMessage = null;
+        let detailError = null;
+        if (!isSuccess) {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            if (typeof responseData === 'object' && responseData.detail) {
+                detailError = responseData.detail;
+                errorMessage = `${errorMessage} - ${JSON.stringify(detailError)}`;
+            } else if (typeof responseData === 'object' && responseData.error) {
+                detailError = responseData.error;
+                errorMessage = `${errorMessage} - ${JSON.stringify(detailError)}`;
+            } else if (typeof responseData === 'string') {
+                errorMessage = `${errorMessage} - ${responseData}`;
+            }
+        }
+
+        sendResponse({
+            success: isSuccess,
+            status: response.status,
+            data: responseData,
+            error: errorMessage,
+            detail: detailError
+        });
+    } catch (error) {
+        console.error('Proxy request error:', error);
+        sendResponse({
+            success: false,
+            error: error.message
+        });
     }
 }
 

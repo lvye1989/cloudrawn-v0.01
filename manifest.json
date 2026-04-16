@@ -15,7 +15,9 @@
     "host_permissions": [
         "https://gemini.google.com/*",
         "https://aistudio.google.com/*",
-        "https://dashscope.aliyuncs.com/*"
+        "https://dashscope.aliyuncs.com/*",
+        "https://api.yunjintao.com/*",
+        "https://api.replicate.com/*"
     ],
     "web_accessible_resources": [
         {
