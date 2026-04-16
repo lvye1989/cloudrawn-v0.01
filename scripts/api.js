@@ -1,6 +1,6 @@
 /**
  * Multi-Model Image API Client
- * 支持多模型切换：阿里云百炼 Qwen 和 Replicate (FLUX 2 Pro, Nano Banana 2)
+ * 支持多模型切换：阿里云百炼 Qwen 和 Replicate (Nano Banana 2)
  */
 
 // 模型配置
@@ -18,27 +18,6 @@ const MODEL_CONFIGS = {
         validSizes: ['512*512', '1024*1024', '1024*768', '768*1024'],
         requiresApiKey: true,
         apiKeyPlaceholder: '输入阿里云百炼 API Key'
-    },
-    flux: {
-        name: 'FLUX 2 Pro',
-        provider: 'Replicate',
-        baseUrl: 'https://api.replicate.com/v1',
-        model: 'black-forest-labs/flux-2-pro',
-        endpoint: '/predictions',
-        timeout: 120000, // FLUX 需要更长时间
-        maxPromptLength: 4000,
-        maxRetries: 3,
-        retryDelay: 2000,
-        validSizes: ['1024x1024', '1024x768', '768x1024', '512x512', '1440x1440', '1440x1024', '1024x1440'],
-        requiresApiKey: true,
-        apiKeyPlaceholder: '输入 Replicate API Token',
-        // FLUX 特有参数
-        defaultParameters: {
-            aspect_ratio: '1:1',
-            output_format: 'webp',
-            output_quality: 90,
-            safety_tolerance: 2
-        }
     },
     nanobanana: {
         name: 'Nano Banana 2',
@@ -387,139 +366,6 @@ async function callQwenApi(requestBody, apiKey, retryCount = 0) {
 
         throw error;
     }
-}
-
-/**
- * 调用 FLUX 2 Pro API（带重试机制）
- * @param {Object} requestBody - 请求体
- * @param {string} apiKey - Replicate API Token
- * @param {number} retryCount - 当前重试次数
- * @returns {Promise<string>} 生成的图片 URL
- */
-async function callFluxApi(requestBody, apiKey, retryCount = 0) {
-    const config = MODEL_CONFIGS.flux;
-
-    try {
-        // 创建预测请求
-        const response = await fetchWithTimeout(
-            `${config.baseUrl}${config.endpoint}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify(requestBody)
-            },
-            config.timeout
-        );
-
-        if (!response.ok) {
-            await handleApiError(response);
-        }
-
-        const prediction = await response.json();
-
-        // FLUX API 是异步的，需要轮询获取结果
-        if (prediction.status === 'succeeded') {
-            return parseFluxResponse(prediction);
-        }
-
-        // 等待预测完成
-        return await pollFluxPrediction(prediction.id, apiKey, config);
-
-    } catch (error) {
-        // 判断是否需要重试
-        const shouldRetry = retryCount < config.maxRetries &&
-            (error.isRetryable ||
-                error.message?.includes('超时') ||
-                error.message?.includes('network') ||
-                error.name === 'TypeError');
-
-        if (shouldRetry) {
-            const baseDelay = config.retryDelay * Math.pow(2, retryCount);
-            const jitter = Math.random() * 1000;
-            let delayMs = Math.min(baseDelay + jitter, 30000);
-
-            console.warn(`FLUX API 调用失败，${Math.round(delayMs)}ms 后进行第 ${retryCount + 1} 次重试...`);
-            await delay(delayMs);
-            return callFluxApi(requestBody, apiKey, retryCount + 1);
-        }
-
-        throw error;
-    }
-}
-
-/**
- * 轮询 FLUX 预测结果
- * @param {string} predictionId - 预测 ID
- * @param {string} apiKey - API Token
- * @param {Object} config - FLUX 配置
- * @returns {Promise<string>} 图片 URL
- */
-async function pollFluxPrediction(predictionId, apiKey, config) {
-    const maxPollTime = config.timeout;
-    const pollInterval = 2000; // 2秒轮询间隔
-    const startTime = Date.now();
-
-    while (Date.now() - startTime < maxPollTime) {
-        await delay(pollInterval);
-
-        const response = await fetchWithTimeout(
-            `${config.baseUrl}/predictions/${predictionId}`,
-            {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`
-                }
-            },
-            10000 // 单次轮询超时
-        );
-
-        if (!response.ok) {
-            await handleApiError(response);
-        }
-
-        const prediction = await response.json();
-
-        if (prediction.status === 'succeeded') {
-            return parseFluxResponse(prediction);
-        }
-
-        if (prediction.status === 'failed') {
-            throw new Error(`FLUX 预测失败: ${prediction.error || '未知错误'}`);
-        }
-
-        if (prediction.status === 'canceled') {
-            throw new Error('FLUX 预测被取消');
-        }
-
-        // 继续等待 (status: 'starting', 'processing')
-    }
-
-    throw new Error('FLUX 预测超时');
-}
-
-/**
- * 解析 FLUX API 响应
- * @param {Object} prediction - 预测结果
- * @returns {string} 图片 URL
- */
-function parseFluxResponse(prediction) {
-    if (!prediction.output) {
-        throw new Error('FLUX 响应中未找到 output 字段');
-    }
-
-    // FLUX output 可能是字符串 URL 或数组
-    if (typeof prediction.output === 'string') {
-        return prediction.output;
-    }
-
-    if (Array.isArray(prediction.output) && prediction.output.length > 0) {
-        return prediction.output[0];
-    }
-
-    throw new Error('FLUX 返回中未找到有效的图片 URL');
 }
 
 /**
@@ -1172,99 +1018,11 @@ async function multiImageEdit(params) {
 }
 
 /**
- * 构建 FLUX 请求体
- * @param {string} prompt - 提示词
- * @param {string} size - 图片尺寸
- * @param {Object} options - 额外选项
- * @returns {Object}
- */
-function buildFluxRequestBody(prompt, size = '1024x1024', options = {}) {
-    const config = MODEL_CONFIGS.flux;
-    const { aspectRatio = '1:1', outputFormat = 'webp', outputQuality = 90, safetyTolerance = 2 } = options;
-
-    // 将尺寸转换为 aspect_ratio
-    let finalAspectRatio = aspectRatio;
-    if (size && !size.includes('x')) {
-        // Qwen 格式尺寸，转换为 FLUX 格式
-        const sizeMap = {
-            '1024*1024': '1:1',
-            '1024*768': '4:3',
-            '768*1024': '3:4',
-            '512*512': '1:1',
-            '1440*1440': '1:1',
-            '1440*1024': '4:3',
-            '1024*1440': '3:4'
-        };
-        finalAspectRatio = sizeMap[size] || '1:1';
-    } else if (size && size.includes('x')) {
-        // FLUX 格式尺寸
-        const [w, h] = size.split('x').map(Number);
-        if (w && h) {
-            const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
-            const divisor = gcd(w, h);
-            finalAspectRatio = `${w / divisor}:${h / divisor}`;
-        }
-    }
-
-    return {
-        model: config.model,
-        input: {
-            prompt: prompt,
-            aspect_ratio: finalAspectRatio,
-            output_format: outputFormat,
-            output_quality: outputQuality,
-            safety_tolerance: safetyTolerance
-        }
-    };
-}
-
-/**
- * 使用 FLUX 2 Pro 生成图片
- * @param {Object} params - 生成参数
- * @param {string} params.prompt - 提示词
- * @param {string} params.apiKey - Replicate API Token
- * @param {string} [params.size] - 图片尺寸
- * @param {string} [params.aspectRatio] - 宽高比 (1:1, 4:3, 3:4, 16:9, 9:16)
- * @param {string} [params.outputFormat] - 输出格式 (webp, jpg, png)
- * @param {number} [params.outputQuality] - 输出质量 (1-100)
- * @param {number} [params.safetyTolerance] - 安全容忍度 (1-6)
- * @returns {Promise<string>} 生成的图片 URL
- * @throws {Error} 当参数无效或 API 调用失败时抛出
- */
-async function generateImageFlux(params) {
-    const {
-        prompt,
-        apiKey,
-        size,
-        aspectRatio = '1:1',
-        outputFormat = 'webp',
-        outputQuality = 90,
-        safetyTolerance = 2
-    } = params;
-
-    // 参数验证
-    validateParams(params);
-
-    // 构建 FLUX 请求体
-    const requestBody = buildFluxRequestBody(prompt, size, {
-        aspectRatio,
-        outputFormat,
-        outputQuality,
-        safetyTolerance
-    });
-
-    return callFluxApi(requestBody, apiKey);
-}
-
-/**
  * 统一生成图片入口（根据当前模型选择 API）
  * @param {Object} params - 生成参数
  * @returns {Promise<string>} 生成的图片 URL
  */
 async function generateImageUnified(params) {
-    if (currentModel === 'flux') {
-        return generateImageFlux(params);
-    }
     if (currentModel === 'nanobanana') {
         return generateImageNanoBanana(params);
     }
@@ -1273,7 +1031,6 @@ async function generateImageUnified(params) {
 
 /**
  * 统一参考图生成入口（根据当前模型选择 API）
- * 注意：FLUX 2 Pro 不支持参考图，会回退到 Qwen
  * Nano Banana 2 支持参考图
  * @param {Object} params - 生成参数
  * @returns {Promise<string>} 生成的图片 URL
@@ -1318,20 +1075,17 @@ async function generateWithReferenceUnified(params) {
         return callNanoBananaApi(requestBody, apiKey);
     }
 
-    if (currentModel === 'flux') {
-        console.warn(`${MODEL_CONFIGS[currentModel]?.name || currentModel} 不支持参考图功能，使用 Qwen API`);
-    }
     return generateWithReference(params);
 }
 
 /**
  * 统一局部重绘入口（根据当前模型选择 API）
- * 注意：FLUX 2 Pro 和 Nano Banana 2 不支持蒙版编辑，会回退到 Qwen
+ * 注意：Nano Banana 2 不支持蒙版编辑，会回退到 Qwen
  * @param {Object} params - 生成参数
  * @returns {Promise<string>} 生成的图片 URL
  */
 async function inpaintImageUnified(params) {
-    if (currentModel === 'flux' || currentModel === 'nanobanana') {
+    if (currentModel === 'nanobanana') {
         console.warn(`${MODEL_CONFIGS[currentModel]?.name || currentModel} 不支持蒙版编辑功能，使用 Qwen API`);
     }
     return inpaintImage(params);
@@ -1474,8 +1228,6 @@ if (typeof module !== 'undefined' && module.exports) {
         multiImageEdit,
         // Qwen 文字优化
         optimizePrompt,
-        // FLUX API
-        generateImageFlux,
         // Nano Banana API
         generateImageNanoBanana,
         callNanoBananaApi,
@@ -1495,7 +1247,6 @@ if (typeof module !== 'undefined' && module.exports) {
     window.inpaintImage = inpaintImage;
     window.multiImageEdit = multiImageEdit;
     window.optimizePrompt = optimizePrompt;
-    window.generateImageFlux = generateImageFlux;
     window.generateImageNanoBanana = generateImageNanoBanana;
     window.callNanoBananaApi = callNanoBananaApi;
     window.generateImageUnified = generateImageUnified;

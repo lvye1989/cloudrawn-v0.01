@@ -48,7 +48,15 @@ const state = {
     sketchRefImage: null,     // 线稿参考图
     // 主页选项
     homeSize: '1:1',
-    homeQuality: 'high'
+    homeQuality: 'high',
+    // 建筑大师模式
+    architectStyle: 'modern',  // 建筑风格
+    architectView: 'aerial',   // 视角
+    architectTime: 'day',      // 时间氛围
+    architectRefImage: null,   // 建筑参考图
+    architectStyleImage: null,  // 建筑风格参考图
+    selectedMaster: 'none',    // 选中的建筑大师
+    masterPrompts: {}          // 缓存的大师提示词
 };
 
 // Canvas contexts 缓存
@@ -98,9 +106,24 @@ function init() {
 
         // 初始化拖拽功能
         initResizeHandles();
+
+        // 初始化建筑大师大师选择UI
+        initMasterSelection();
+
+        // 初始化 Nano Banana 参数可见性
+        updateArchitectNanobananaParamsVisibility();
     } catch (error) {
         console.error('Initialization error:', error);
         updateStatus('初始化失败: ' + error.message, 'error');
+    }
+}
+
+// 初始化大师选择UI
+function initMasterSelection() {
+    // 设置默认选中"默认"
+    const defaultAvatar = document.querySelector('.master-avatar[data-master="none"]');
+    if (defaultAvatar) {
+        defaultAvatar.classList.add('active');
     }
 }
 
@@ -213,6 +236,46 @@ function cacheElements() {
     elements.maskClearPanel = document.getElementById('mask-clear-panel');
     // 注意：mask-prompt-panel 已在控制面板中移除，提示词输入使用工作区的 mask-prompt
     elements.maskOptimizeBtnMain = document.getElementById('mask-optimize-btn-main');
+
+    // 建筑大师模式控制面板
+    elements.architectStylePanel = document.getElementById('architect-style-panel');
+    elements.architectViewPanel = document.getElementById('architect-view-panel');
+    elements.architectTimePanel = document.getElementById('architect-time-panel');
+    elements.architectPromptPanel = document.getElementById('architect-prompt-panel');
+    elements.architectNegativePromptPanel = document.getElementById('architect-negative-prompt-panel');
+    elements.architectOptimizeBtn = document.getElementById('architect-optimize-btn');
+    elements.architectGeneratePanel = document.getElementById('architect-generate-panel');
+    elements.architectImageSizePanel = document.getElementById('architect-image-size-panel');
+    elements.architectImageQualityPanel = document.getElementById('architect-image-quality-panel');
+    elements.architectImageCountPanel = document.getElementById('architect-image-count-panel');
+    elements.architectPromptExtendPanel = document.getElementById('architect-prompt-extend-panel');
+    elements.architectStatus = document.getElementById('architect-status');
+
+    // 建筑大师模式 - 参考图上传
+    elements.architectRefUpload = document.getElementById('architect-ref-upload');
+    elements.architectRefInput = document.getElementById('architect-ref-input');
+    elements.architectRefPreview = document.getElementById('architect-ref-preview');
+    elements.architectRefPlaceholder = document.getElementById('architect-ref-placeholder');
+    elements.architectRefRemove = document.getElementById('architect-ref-remove');
+
+    elements.architectStyleUpload = document.getElementById('architect-style-upload');
+    elements.architectStyleInput = document.getElementById('architect-style-input');
+    elements.architectStylePreview = document.getElementById('architect-style-preview');
+    elements.architectStylePlaceholder = document.getElementById('architect-style-placeholder');
+    elements.architectStyleRemove = document.getElementById('architect-style-remove');
+
+    // 建筑大师 Skill 选择
+    elements.architectSelectedMaster = document.getElementById('architect-selected-master');
+    elements.architectMasterDesc = document.getElementById('architect-master-desc');
+    elements.masterAvatars = document.querySelectorAll('.master-avatar');
+
+    // 建筑大师 Nano Banana 2 专属参数
+    elements.architectNanobananaParams = document.getElementById('architect-nanobanana-params');
+    elements.architectNanobananaAspectRatio = document.getElementById('architect-nanobanana-aspect-ratio');
+    elements.architectNanobananaResolution = document.getElementById('architect-nanobanana-resolution');
+    elements.architectNanobananaOutputFormat = document.getElementById('architect-nanobanana-output-format');
+    elements.architectNanobananaGoogleSearch = document.getElementById('architect-nanobanana-google-search');
+    elements.architectNanobananaImageSearch = document.getElementById('architect-nanobanana-image-search');
 
     // 主页设置面板
     elements.homeMainPrompt = document.getElementById('home-main-prompt');
@@ -478,11 +541,102 @@ function bindEvents() {
         addListener(maskSendBtn, 'click', handleMaskGenerate);
     }
 
+    // 建筑大师模式事件绑定
+    bindArchitectEvents();
+
     // 控制面板事件绑定
     bindControlPanelEvents();
 
     // 主页事件绑定
     bindHomeEvents();
+}
+
+// 建筑大师模式事件绑定
+function bindArchitectEvents() {
+    // 建筑风格选择
+    if (elements.architectStylePanel) {
+        addListener(elements.architectStylePanel, 'change', (e) => {
+            state.architectStyle = e.target.value;
+        });
+    }
+
+    // 视角选择
+    if (elements.architectViewPanel) {
+        addListener(elements.architectViewPanel, 'change', (e) => {
+            state.architectView = e.target.value;
+        });
+    }
+
+    // 时间氛围选择
+    if (elements.architectTimePanel) {
+        addListener(elements.architectTimePanel, 'change', (e) => {
+            state.architectTime = e.target.value;
+        });
+    }
+
+    // 参考图上传
+    if (elements.architectRefUpload) {
+        addListener(elements.architectRefUpload, 'click', () => elements.architectRefInput?.click());
+        addListener(elements.architectRefUpload, 'dragover', handleDragOver);
+        addListener(elements.architectRefUpload, 'dragleave', handleDragLeave);
+        addListener(elements.architectRefUpload, 'drop', handleArchitectRefDrop);
+    }
+    if (elements.architectRefInput) {
+        addListener(elements.architectRefInput, 'change', handleArchitectRefSelect);
+    }
+    if (elements.architectRefRemove) {
+        addListener(elements.architectRefRemove, 'click', (e) => {
+            e.stopPropagation();
+            removeArchitectRefImage();
+        });
+    }
+
+    // 风格参考图上传
+    if (elements.architectStyleUpload) {
+        addListener(elements.architectStyleUpload, 'click', () => elements.architectStyleInput?.click());
+        addListener(elements.architectStyleUpload, 'dragover', handleDragOver);
+        addListener(elements.architectStyleUpload, 'dragleave', handleDragLeave);
+        addListener(elements.architectStyleUpload, 'drop', handleArchitectStyleDrop);
+    }
+    if (elements.architectStyleInput) {
+        addListener(elements.architectStyleInput, 'change', handleArchitectStyleSelect);
+    }
+    if (elements.architectStyleRemove) {
+        addListener(elements.architectStyleRemove, 'click', (e) => {
+            e.stopPropagation();
+            removeArchitectStyleImage();
+        });
+    }
+
+    // 生成按钮
+    if (elements.architectGeneratePanel) {
+        addListener(elements.architectGeneratePanel, 'click', handleArchitectGenerate);
+    }
+
+    // 优化按钮
+    if (elements.architectOptimizeBtn) {
+        addListener(elements.architectOptimizeBtn, 'click', handleArchitectOptimizePrompt);
+    }
+
+    // 大师头像选择
+    if (elements.masterAvatars) {
+        elements.masterAvatars.forEach(avatar => {
+            addListener(avatar, 'click', () => handleMasterSelect(avatar));
+        });
+    }
+
+    // Nano Banana 参数监听（用于显示/隐藏）
+    if (elements.modelSelector) {
+        addListener(elements.modelSelector, 'change', updateArchitectNanobananaParamsVisibility);
+    }
+}
+
+// 更新建筑大师 Nano Banana 参数显示/隐藏
+function updateArchitectNanobananaParamsVisibility() {
+    const currentModel = elements.modelSelector?.value || 'qwen';
+    if (elements.architectNanobananaParams) {
+        elements.architectNanobananaParams.style.display = currentModel === 'nanobanana' ? 'grid' : 'none';
+    }
 }
 
 // 控制面板事件绑定
@@ -759,7 +913,6 @@ function updateApiKeyPlaceholder(model) {
 
     const placeholders = {
         qwen: '输入阿里云百炼 API Key',
-        flux: '输入 Replicate API Token',
         nanobanana: '输入 Replicate API Token'
     };
 
@@ -1385,7 +1538,7 @@ function debounce(func, wait) {
 
 // 更新模式
 function updateMode(mode) {
-    if (!['home', 'sketch', 'style', 'mask'].includes(mode)) {
+    if (!['home', 'sketch', 'style', 'mask', 'architect'].includes(mode)) {
         console.error('Invalid mode:', mode);
         return;
     }
@@ -1449,11 +1602,12 @@ function updatePromptPlaceholder(mode) {
         home: '描述你想要生成的图片...',
         sketch: '描述你想要的图像效果...',
         style: '描述你想要的图像内容...',
-        mask: '描述如何修改涂抹区域...'
+        mask: '描述如何修改涂抹区域...',
+        architect: '描述你想要的建筑设计，例如：三层别墅，带泳池和花园...'
     };
 
     // 更新控制面板中的提示词输入框
-    const panelPromptIds = ['sketch-prompt-panel', 'style-prompt-panel', 'mask-prompt-panel'];
+    const panelPromptIds = ['sketch-prompt-panel', 'style-prompt-panel', 'mask-prompt-panel', 'architect-prompt-panel'];
     panelPromptIds.forEach(id => {
         const textarea = document.getElementById(id);
         if (textarea && placeholders[mode]) {
@@ -3213,5 +3367,393 @@ function loadSavedWidths() {
         }
     } catch (error) {
         console.error('Failed to load panel widths:', error);
+    }
+}
+
+// ==================== 建筑大师模式处理函数 ====================
+
+// 建筑风格配置
+const ARCHITECT_STYLES = {
+    modern: { name: '现代风格', prompt: 'modern architecture, contemporary design, clean lines, glass and steel' },
+    classical: { name: '古典风格', prompt: 'classical architecture, traditional design, columns, ornate details' },
+    minimal: { name: '极简风格', prompt: 'minimalist architecture, simple geometric forms, white surfaces, zen aesthetic' },
+    futurist: { name: '未来风格', prompt: 'futuristic architecture, innovative design, cutting-edge technology, sleek curves' },
+    chinese: { name: '中式风格', prompt: 'traditional Chinese architecture, courtyard, curved roofs, wooden structures' },
+    european: { name: '欧式风格', prompt: 'European architecture, classical elements, elegant facades, historic charm' },
+    industrial: { name: '工业风格', prompt: 'industrial architecture, exposed beams, raw materials, loft style' },
+    green: { name: '绿色建筑', prompt: 'green architecture, sustainable design, eco-friendly, vertical gardens' }
+};
+
+// 视角配置
+const VIEW_ANGLES = {
+    aerial: { name: '鸟瞰', prompt: 'aerial view, bird eye view, overview perspective' },
+    eye: { name: '人视', prompt: 'eye level view, human perspective, street view' },
+    worm: { name: '虫视', prompt: 'worm eye view, looking up, dramatic upward angle' },
+    closeup: { name: '特写', prompt: 'close-up view, detail shot, architectural details' }
+};
+
+// 时间氛围配置
+const TIME_ATMOSPHERES = {
+    day: { name: '白天', prompt: 'daylight, bright and clear, natural sunlight' },
+    sunset: { name: '黄昏', prompt: 'sunset, golden hour, warm lighting, orange sky' },
+    night: { name: '夜晚', prompt: 'night scene, artificial lighting, illuminated building, city lights' },
+    dawn: { name: '黎明', prompt: 'dawn, early morning, soft light, blue hour' }
+};
+
+// 构建建筑大师提示词
+function buildArchitectPrompt(userPrompt, style, view, time) {
+    const styleConfig = ARCHITECT_STYLES[style] || ARCHITECT_STYLES.modern;
+    const viewConfig = VIEW_ANGLES[view] || VIEW_ANGLES.aerial;
+    const timeConfig = TIME_ATMOSPHERES[time] || TIME_ATMOSPHERES.day;
+
+    return `architectural visualization, professional architecture photography, ${styleConfig.prompt}, ${viewConfig.prompt}, ${timeConfig.prompt}, ${userPrompt}, photorealistic, high quality, detailed textures, realistic materials, professional lighting, 8k resolution`;
+}
+
+// 建筑大师参考图拖放处理
+function handleArchitectRefDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const uploadBox = e.currentTarget;
+    uploadBox.classList.remove('drag-over');
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+        handleArchitectRefFile(files[0]);
+    }
+}
+
+// 建筑大师参考图选择处理
+function handleArchitectRefSelect(e) {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+        handleArchitectRefFile(files[0]);
+    }
+}
+
+// 处理建筑大师参考图文件
+function handleArchitectRefFile(file) {
+    if (!file.type.startsWith('image/')) {
+        updateArchitectStatus('请上传图片文件', 'error');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            state.architectRefImage = e.target.result;
+            if (elements.architectRefPreview) {
+                elements.architectRefPreview.src = e.target.result;
+                elements.architectRefPreview.hidden = false;
+            }
+            if (elements.architectRefPlaceholder) {
+                elements.architectRefPlaceholder.hidden = true;
+            }
+            if (elements.architectRefRemove) {
+                elements.architectRefRemove.hidden = false;
+            }
+            updateArchitectStatus('参考图上传成功');
+        } catch (err) {
+            console.error('Image processing error:', err);
+            updateArchitectStatus('图片处理失败', 'error');
+        }
+    };
+    reader.onerror = () => {
+        updateArchitectStatus('图片读取失败', 'error');
+    };
+    reader.readAsDataURL(file);
+}
+
+// 移除建筑大师参考图
+function removeArchitectRefImage() {
+    state.architectRefImage = null;
+    if (elements.architectRefPreview) {
+        elements.architectRefPreview.src = '';
+        elements.architectRefPreview.hidden = true;
+    }
+    if (elements.architectRefPlaceholder) {
+        elements.architectRefPlaceholder.hidden = false;
+    }
+    if (elements.architectRefRemove) {
+        elements.architectRefRemove.hidden = true;
+    }
+    if (elements.architectRefInput) {
+        elements.architectRefInput.value = '';
+    }
+    updateArchitectStatus('参考图已移除');
+}
+
+// 建筑风格参考图拖放处理
+function handleArchitectStyleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const uploadBox = e.currentTarget;
+    uploadBox.classList.remove('drag-over');
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+        handleArchitectStyleFile(files[0]);
+    }
+}
+
+// 建筑风格参考图选择处理
+function handleArchitectStyleSelect(e) {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+        handleArchitectStyleFile(files[0]);
+    }
+}
+
+// 处理建筑风格参考图文件
+function handleArchitectStyleFile(file) {
+    if (!file.type.startsWith('image/')) {
+        updateArchitectStatus('请上传图片文件', 'error');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            state.architectStyleImage = e.target.result;
+            if (elements.architectStylePreview) {
+                elements.architectStylePreview.src = e.target.result;
+                elements.architectStylePreview.hidden = false;
+            }
+            if (elements.architectStylePlaceholder) {
+                elements.architectStylePlaceholder.hidden = true;
+            }
+            if (elements.architectStyleRemove) {
+                elements.architectStyleRemove.hidden = false;
+            }
+            updateArchitectStatus('风格参考图上传成功');
+        } catch (err) {
+            console.error('Image processing error:', err);
+            updateArchitectStatus('图片处理失败', 'error');
+        }
+    };
+    reader.onerror = () => {
+        updateArchitectStatus('图片读取失败', 'error');
+    };
+    reader.readAsDataURL(file);
+}
+
+// 移除建筑风格参考图
+function removeArchitectStyleImage() {
+    state.architectStyleImage = null;
+    if (elements.architectStylePreview) {
+        elements.architectStylePreview.src = '';
+        elements.architectStylePreview.hidden = true;
+    }
+    if (elements.architectStylePlaceholder) {
+        elements.architectStylePlaceholder.hidden = false;
+    }
+    if (elements.architectStyleRemove) {
+        elements.architectStyleRemove.hidden = true;
+    }
+    if (elements.architectStyleInput) {
+        elements.architectStyleInput.value = '';
+    }
+    updateArchitectStatus('风格参考图已移除');
+}
+
+// 更新建筑大师状态
+function updateArchitectStatus(message, type = 'info') {
+    if (elements.architectStatus) {
+        elements.architectStatus.textContent = message;
+        elements.architectStatus.className = 'home-status ' + type;
+    }
+}
+
+// ==================== 建筑大师 Skill 功能 ====================
+
+// 大师描述映射
+const MASTER_DESCRIPTIONS = {
+    none: '默认：不使用大师风格',
+    路易斯康: '路易斯·康：美国现代主义建筑大师，以几何纯粹性和光影运用著称',
+    柯布西耶: '勒·柯布西耶：现代建筑之父，提出"住宅是居住的机器"'
+};
+
+// 处理大师头像选择
+function handleMasterSelect(avatar) {
+    const master = avatar.dataset.master;
+    if (!master) return;
+
+    // 更新状态
+    state.selectedMaster = master;
+
+    // 更新UI
+    elements.masterAvatars.forEach(a => a.classList.remove('active'));
+    avatar.classList.add('active');
+
+    // 更新隐藏输入
+    if (elements.architectSelectedMaster) {
+        elements.architectSelectedMaster.value = master;
+    }
+
+    // 更新描述
+    if (elements.architectMasterDesc) {
+        elements.architectMasterDesc.textContent = MASTER_DESCRIPTIONS[master] || '';
+    }
+
+    // 预加载大师提示词
+    if (master !== 'none') {
+        loadMasterPrompt(master);
+    }
+}
+
+// 加载大师提示词
+async function loadMasterPrompt(masterName) {
+    if (state.masterPrompts[masterName]) {
+        return state.masterPrompts[masterName];
+    }
+
+    try {
+        // 构建文件路径
+        const fileName = encodeURIComponent(masterName);
+        const filePath = `skill/${fileName}.md`;
+
+        const response = await fetch(filePath);
+        if (!response.ok) {
+            console.warn(`无法加载大师提示词: ${filePath}`);
+            return null;
+        }
+
+        const content = await response.text();
+        state.masterPrompts[masterName] = content;
+        return content;
+    } catch (error) {
+        console.error('加载大师提示词失败:', error);
+        return null;
+    }
+}
+
+// 构建建筑大师提示词（包含大师风格）
+async function buildArchitectPromptWithMaster(userPrompt, style, view, time) {
+    const styleConfig = ARCHITECT_STYLES[style] || ARCHITECT_STYLES.modern;
+    const viewConfig = VIEW_ANGLES[view] || VIEW_ANGLES.aerial;
+    const timeConfig = TIME_ATMOSPHERES[time] || TIME_ATMOSPHERES.day;
+
+    // 基础提示词
+    let fullPrompt = `architectural visualization, professional architecture photography, ${styleConfig.prompt}, ${viewConfig.prompt}, ${timeConfig.prompt}, ${userPrompt}, photorealistic, high quality, detailed textures, realistic materials, professional lighting, 8k resolution`;
+
+    // 如果选择了大师，添加大师提示词
+    if (state.selectedMaster && state.selectedMaster !== 'none') {
+        const masterPrompt = await loadMasterPrompt(state.selectedMaster);
+        if (masterPrompt) {
+            fullPrompt = `${masterPrompt}\n\n${fullPrompt}`;
+        }
+    }
+
+    return fullPrompt;
+}
+
+// 提示词优化
+async function handleArchitectOptimizePrompt() {
+    const promptTextarea = elements.architectPromptPanel;
+    if (!promptTextarea) return;
+
+    const originalPrompt = promptTextarea.value.trim();
+    if (!originalPrompt) {
+        updateArchitectStatus('请输入提示词后再优化', 'error');
+        return;
+    }
+
+    if (!state.apiKey) {
+        updateArchitectStatus('请先设置 API Key', 'error');
+        return;
+    }
+
+    try {
+        updateArchitectStatus('正在优化提示词...');
+        const result = await optimizePrompt({
+            prompt: originalPrompt,
+            apiKey: state.apiKey,
+            scene: 'architecture'
+        });
+
+        if (result.optimizedPrompt) {
+            promptTextarea.value = result.optimizedPrompt;
+            updateArchitectStatus('提示词优化成功');
+        }
+
+        if (result.optimizedNegative && elements.architectNegativePromptPanel) {
+            const currentNeg = elements.architectNegativePromptPanel.value.trim();
+            if (!currentNeg) {
+                elements.architectNegativePromptPanel.value = result.optimizedNegative;
+            }
+        }
+    } catch (error) {
+        console.error('提示词优化失败:', error);
+        updateArchitectStatus('提示词优化失败: ' + error.message, 'error');
+    }
+}
+
+// 建筑大师生成处理
+async function handleArchitectGenerate() {
+    try {
+        if (!state.apiKey) {
+            updateArchitectStatus('请先设置 API Key', 'error');
+            return;
+        }
+
+        const userPrompt = elements.architectPromptPanel?.value.trim();
+        if (!userPrompt) {
+            updateArchitectStatus('请输入建筑描述', 'error');
+            return;
+        }
+
+        updateArchitectStatus('正在生成...');
+
+        // 获取参数
+        const style = state.architectStyle || 'modern';
+        const view = state.architectView || 'aerial';
+        const time = state.architectTime || 'day';
+        const negativePrompt = elements.architectNegativePromptPanel?.value.trim() || '';
+        const size = elements.architectImageSizePanel?.value || '1024*1024';
+        const promptExtend = elements.architectPromptExtendPanel?.checked ?? true;
+
+        // 获取当前模型
+        const currentModel = elements.modelSelector?.value || 'qwen';
+
+        // 构建专业建筑提示词（包含大师风格）
+        const fullPrompt = await buildArchitectPromptWithMaster(userPrompt, style, view, time);
+
+        // 准备生成参数
+        const params = {
+            prompt: fullPrompt,
+            negativePrompt: negativePrompt,
+            apiKey: state.apiKey,
+            size: size,
+            promptExtend: promptExtend
+        };
+
+        // 如果是 Nano Banana 2，添加专属参数
+        if (currentModel === 'nanobanana') {
+            params.aspectRatio = elements.architectNanobananaAspectRatio?.value || '1:1';
+            params.resolution = elements.architectNanobananaResolution?.value || '1K';
+            params.outputFormat = elements.architectNanobananaOutputFormat?.value || 'jpg';
+            params.googleSearch = elements.architectNanobananaGoogleSearch?.checked ?? false;
+            params.imageSearch = elements.architectNanobananaImageSearch?.checked ?? false;
+        }
+
+        let result;
+
+        // 如果有参考图，使用参考图生成
+        if (state.architectRefImage) {
+            result = await generateWithReferenceUnified({
+                ...params,
+                referenceImage: state.architectRefImage,
+                baseImage: state.architectRefImage
+            });
+        } else {
+            result = await generateImageUnified(params);
+        }
+
+        // 添加到结果预览栏
+        addToResultList(result, fullPrompt);
+        updateArchitectStatus('生成成功');
+
+    } catch (error) {
+        console.error('建筑大师生成失败:', error);
+        updateArchitectStatus('生成失败: ' + error.message, 'error');
     }
 }

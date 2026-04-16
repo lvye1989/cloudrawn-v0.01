@@ -50,6 +50,13 @@
                     </svg>
                     局部修改
                 </button>
+                <button class="mode-tab" data-mode="architect">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 21h18M3 7v14M21 7v14M6 7V3h12v4"/>
+                        <path d="M9 21V11h6v10"/>
+                    </svg>
+                    建筑大师
+                </button>
             </nav>
         </header>
 
@@ -362,6 +369,242 @@
                     </div>
 
                 </div>
+
+                <!-- 建筑大师模式控制面板 -->
+                <div class="control-mode" id="control-architect">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M3 21h18M3 7v14M21 7v14M6 7V3h12v4"/>
+                                <path d="M9 21V11h6v10"/>
+                            </svg>
+                            <span>建筑大师</span>
+                        </div>
+                        <p class="section-desc">专业建筑设计效果图生成，优化建筑结构、光影和材质表现</p>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="3" />
+                                <path
+                                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            </svg>
+                            <span>建筑风格</span>
+                        </div>
+                        <div class="param-item" style="margin-bottom: 12px;">
+                            <label>建筑类型</label>
+                            <select id="architect-style-panel" class="param-select">
+                                <option value="modern">现代风格</option>
+                                <option value="classical">古典风格</option>
+                                <option value="minimal">极简风格</option>
+                                <option value="futurist">未来风格</option>
+                                <option value="chinese">中式风格</option>
+                                <option value="european">欧式风格</option>
+                                <option value="industrial">工业风格</option>
+                                <option value="green">绿色建筑</option>
+                            </select>
+                        </div>
+                        <div class="param-item" style="margin-bottom: 12px;">
+                            <label>视角</label>
+                            <select id="architect-view-panel" class="param-select">
+                                <option value="aerial">鸟瞰视角</option>
+                                <option value="eye">人视视角</option>
+                                <option value="worm">虫视视角</option>
+                                <option value="closeup">特写视角</option>
+                            </select>
+                        </div>
+                        <div class="param-item" style="margin-bottom: 12px;">
+                            <label>时间氛围</label>
+                            <select id="architect-time-panel" class="param-select">
+                                <option value="day">白天</option>
+                                <option value="sunset">黄昏</option>
+                                <option value="night">夜晚</option>
+                                <option value="dawn">黎明</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            <span>提示词</span>
+                            <button id="architect-optimize-btn" class="btn-optimize" title="优化提示词">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                    <path d="M2 17l10 5 10-5" />
+                                    <path d="M2 12l10 5 10-5" />
+                                </svg>
+                                <span>优化</span>
+                            </button>
+                        </div>
+                        <textarea id="architect-prompt-panel" class="prompt-textarea"
+                            placeholder="描述你想要的建筑设计，例如：三层别墅，带泳池和花园，玻璃幕墙..." rows="3"></textarea>
+                    </div>
+
+                    <!-- 负面提示词 -->
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="15" y1="9" x2="9" y2="15" />
+                                <line x1="9" y1="9" x2="15" y2="15" />
+                            </svg>
+                            <span>负面提示词</span>
+                        </div>
+                        <textarea id="architect-negative-prompt-panel" class="prompt-textarea small"
+                            placeholder="不想出现的内容，如：卡通、动漫、低质量..." rows="2"></textarea>
+                    </div>
+
+                    <!-- 建筑大师 Skill 选择 -->
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M12 2v20M2 12h20" />
+                            </svg>
+                            <span>建筑大师 Skill</span>
+                        </div>
+                        <p class="section-desc" style="margin-bottom: 12px;">选择建筑大师，将大师风格融入生成</p>
+                        <div class="master-selector">
+                            <div class="master-avatar" data-master="none" title="默认">
+                                <div class="master-avatar-inner default">默认</div>
+                                <span class="master-name">默认</span>
+                            </div>
+                            <div class="master-avatar" data-master="路易斯康" title="路易斯·康">
+                                <img src="skill/public/louis-kahn.jpg" alt="路易斯·康" onerror="this.style.display='none';this.parentElement.querySelector('.master-avatar-fallback').style.display='flex'">
+                                <div class="master-avatar-fallback" style="display:none">L.K.</div>
+                                <span class="master-name">路易斯·康</span>
+                            </div>
+                            <div class="master-avatar" data-master="柯布西耶" title="勒·柯布西耶">
+                                <img src="skill/public/le-corbusier.jpg" alt="勒·柯布西耶" onerror="this.style.display='none';this.parentElement.querySelector('.master-avatar-fallback').style.display='flex'">
+                                <div class="master-avatar-fallback" style="display:none">L.C.</div>
+                                <span class="master-name">柯布西耶</span>
+                            </div>
+                        </div>
+                        <input type="hidden" id="architect-selected-master" value="none">
+                        <p class="param-hint" id="architect-master-desc" style="margin-top: 8px; font-size: 11px; color: var(--text-tertiary);">默认：不使用大师风格</p>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="3" />
+                                <path
+                                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            </svg>
+                            <span>生成设置</span>
+                        </div>
+                        <div class="param-grid">
+                            <div class="param-item">
+                                <label>图片尺寸</label>
+                                <select id="architect-image-size-panel" class="param-select">
+                                    <option value="1024*1024">1024 × 1024</option>
+                                    <option value="1024*768">1024 × 768</option>
+                                    <option value="768*1024">768 × 1024</option>
+                                </select>
+                            </div>
+                            <div class="param-item">
+                                <label>图片质量</label>
+                                <select id="architect-image-quality-panel" class="param-select">
+                                    <option value="high">高清 (推荐)</option>
+                                    <option value="standard">标准</option>
+                                    <option value="fast">快速</option>
+                                </select>
+                            </div>
+                            <div class="param-item">
+                                <label>生成数量</label>
+                                <select id="architect-image-count-panel" class="param-select">
+                                    <option value="1">1 张</option>
+                                    <option value="2">2 张</option>
+                                    <option value="4">4 张</option>
+                                </select>
+                            </div>
+                            <div class="param-item">
+                                <label>提示词扩写</label>
+                                <label class="toggle">
+                                    <input type="checkbox" id="architect-prompt-extend-panel" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Nano Banana 2 专属参数 -->
+                        <div id="architect-nanobanana-params" class="param-grid" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                            <div class="param-item">
+                                <label>宽高比</label>
+                                <select id="architect-nanobanana-aspect-ratio" class="param-select">
+                                    <option value="1:1">1:1 方形</option>
+                                    <option value="3:4">3:4 纵向</option>
+                                    <option value="4:3">4:3 横向</option>
+                                    <option value="9:16">9:16 竖屏</option>
+                                    <option value="16:9">16:9 横屏</option>
+                                    <option value="2:3">2:3 纵向</option>
+                                    <option value="3:2">3:2 横向</option>
+                                    <option value="21:9">21:9 宽屏</option>
+                                    <option value="match_input_image">匹配输入图</option>
+                                </select>
+                            </div>
+                            <div class="param-item">
+                                <label>分辨率</label>
+                                <select id="architect-nanobanana-resolution" class="param-select">
+                                    <option value="1K">1K (默认)</option>
+                                    <option value="2K">2K (高清)</option>
+                                    <option value="4K">4K (超清)</option>
+                                    <option value="512px">512px (快速)</option>
+                                </select>
+                            </div>
+                            <div class="param-item">
+                                <label>输出格式</label>
+                                <select id="architect-nanobanana-output-format" class="param-select">
+                                    <option value="jpg">JPG (默认)</option>
+                                    <option value="png">PNG (无损)</option>
+                                </select>
+                            </div>
+                            <div class="param-item nanobanana-search-toggle" style="grid-column: 1 / -1;">
+                                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                                    <label class="toggle-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <label class="toggle">
+                                            <input type="checkbox" id="architect-nanobanana-google-search">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                        <span class="toggle-label">Google 搜索</span>
+                                    </label>
+                                    <label class="toggle-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <label class="toggle">
+                                            <input type="checkbox" id="architect-nanobanana-image-search">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                        <span class="toggle-label">图片搜索</span>
+                                    </label>
+                                </div>
+                                <p class="param-hint" style="margin-top: 4px; font-size: 11px; color: var(--text-tertiary);">启用搜索可获取实时信息作为生成参考</p>
+                            </div>
+                        </div>
+
+                        <div class="prompt-actions" style="margin-top: 12px;">
+                            <button id="architect-generate-panel" class="btn-generate">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M22 2L11 13" />
+                                    <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                                </svg>
+                                <span>生成建筑效果图</span>
+                            </button>
+                        </div>
+                        <div id="architect-status" class="home-status" style="margin-top: 12px;">就绪</div>
+                    </div>
+                </div>
             </aside>
 
             <!-- 左侧：主页模式 -->
@@ -454,7 +697,6 @@
                         <label>AI 模型</label>
                         <select id="model-selector" class="param-select">
                             <option value="qwen">Qwen Image 2.0 Pro (阿里云百炼)</option>
-                            <option value="flux">FLUX 2 Pro (Replicate)</option>
                             <option value="nanobanana">Nano Banana 2 (Replicate)</option>
                         </select>
                     </div>
@@ -867,6 +1109,59 @@
                             </svg>
                             <span>开始融合</span>
                         </button>
+                    </div>
+                </div>
+
+                <!-- 建筑大师模式 -->
+                <div class="workspace-mode" id="mode-architect">
+                    <!-- 建筑参考图上传区域 -->
+                    <div class="multi-image-section">
+                        <div class="section-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                            <span>参考图片</span>
+                            <span class="badge">可选</span>
+                        </div>
+                        <div class="upload-row">
+                            <div class="upload-box" id="architect-ref-upload" role="button" tabindex="0"
+                                aria-label="上传建筑参考图">
+                                <input type="file" id="architect-ref-input" accept="image/png,image/jpeg,image/webp" hidden
+                                    aria-label="选择建筑参考图">
+                                <div class="upload-placeholder" id="architect-ref-placeholder">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.5">
+                                        <path d="M3 21h18M3 7v14M21 7v14M6 7V3h12v4"/>
+                                        <path d="M9 21V11h6v10"/>
+                                    </svg>
+                                    <p>上传建筑参考图</p>
+                                    <small>建筑草图或参考照片</small>
+                                </div>
+                                <img id="architect-ref-preview" class="preview-image" alt="建筑参考图预览" hidden>
+                                <button id="architect-ref-remove" class="remove-btn" hidden title="移除参考图">×</button>
+                            </div>
+                            <div class="upload-box" id="architect-style-upload" role="button" tabindex="0"
+                                aria-label="上传风格参考图">
+                                <input type="file" id="architect-style-input" accept="image/png,image/jpeg,image/webp" hidden
+                                    aria-label="选择风格参考图">
+                                <div class="upload-placeholder" id="architect-style-placeholder">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.5">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                        <circle cx="8.5" cy="8.5" r="1.5" />
+                                        <polyline points="21 15 16 10 5 21" />
+                                    </svg>
+                                    <p>上传风格参考图</p>
+                                    <small>建筑风格参考</small>
+                                </div>
+                                <img id="architect-style-preview" class="preview-image" alt="风格参考图预览" hidden>
+                                <button id="architect-style-remove" class="remove-btn" hidden title="移除风格图">×</button>
+                            </div>
+                        </div>
+                        <p class="multi-image-hint">上传建筑草图或参考照片，AI将根据描述生成专业建筑效果图</p>
                     </div>
                 </div>
             </section>
