@@ -1219,19 +1219,19 @@ body.resizing * {
 }
 
 /* 只在首页模式下显示拖拽手柄 */
-.main-content:has(#mode-home.active) .resize-handle {
-    display: block;
-}
-
+.main-content:has(#mode-home.active) .resize-handle,
 .main-content:has(#mode-sketch.active) .resize-handle,
 .main-content:has(#mode-style.active) .resize-handle,
-.main-content:has(#mode-mask.active) .resize-handle {
-    display: none;
+.main-content:has(#mode-mask.active) .resize-handle,
+.main-content:has(#mode-architect.active) .resize-handle {
+    display: block;
 }
 
 /* 左侧控制面板 */
 .control-panel {
     width: 320px;
+    min-width: 200px;
+    max-width: 500px;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
     overflow-y: auto;
@@ -1240,6 +1240,7 @@ body.resizing * {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    flex: 0 0 auto;
 }
 
 /* 控制面板模式 */

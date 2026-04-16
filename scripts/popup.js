@@ -1610,10 +1610,8 @@ function updateMode(mode) {
     // 更新提示词placeholder
     updatePromptPlaceholder(mode);
 
-    // 切换模式时加载保存的宽度（只在首页模式）
-    if (mode === 'home') {
-        loadSavedWidths();
-    }
+    // 切换模式时加载保存的宽度
+    applyModeWidths(mode);
 }
 
 // 更新提示词占位符
@@ -3263,6 +3261,8 @@ const resizeState = {
 // 常量
 const RESIZE_CONSTANTS = {
     MIN_WIDTH: 200,
+    MAX_LEFT_WIDTH: 800,
+    MAX_RIGHT_WIDTH: 600,
     STORAGE_KEY: 'panel_widths'
 };
 
@@ -3278,8 +3278,10 @@ function initResizeHandles() {
         rightHandle.addEventListener('mousedown', (e) => startResize(e, 'right'));
     }
 
-    // 加载保存的宽度
-    loadSavedWidths();
+    // 加载并应用当前模式的宽度
+    const activeMode = document.querySelector('.workspace-mode.active') || document.querySelector('#mode-home.active');
+    const currentMode = activeMode ? (activeMode.id === 'mode-home' ? 'home' : 'other') : 'home';
+    applyModeWidths(currentMode);
 }
 
 // 开始拖拽
@@ -3289,13 +3291,29 @@ function startResize(e, handle) {
     resizeState.currentHandle = handle;
     resizeState.startX = e.clientX;
 
-    const modeHome = document.getElementById('mode-home');
-    const controlHome = document.getElementById('control-home');
-    const resultPanel = document.querySelector('.result-panel');
+    // 获取当前活动模式
+    const activeMode = document.querySelector('.workspace-mode.active') || document.querySelector('#mode-home.active');
+    const isHomeMode = activeMode && activeMode.id === 'mode-home';
 
-    if (modeHome) resizeState.startWidthLeft = modeHome.offsetWidth;
-    if (controlHome) resizeState.startWidthMiddle = controlHome.offsetWidth;
-    if (resultPanel) resizeState.startWidthRight = resultPanel.offsetWidth;
+    if (isHomeMode) {
+        // 首页模式：左栏是 mode-home，中间是 control-home，右栏是 result-panel
+        const modeHome = document.getElementById('mode-home');
+        const controlHome = document.getElementById('control-home');
+        const resultPanel = document.querySelector('.result-panel');
+
+        if (modeHome) resizeState.startWidthLeft = modeHome.offsetWidth;
+        if (controlHome) resizeState.startWidthMiddle = controlHome.offsetWidth;
+        if (resultPanel) resizeState.startWidthRight = resultPanel.offsetWidth;
+    } else {
+        // 其他模式：左栏是 control-panel，中间是 workspace，右栏是 result-panel
+        const controlPanel = document.getElementById('control-panel');
+        const workspace = document.querySelector('.workspace');
+        const resultPanel = document.querySelector('.result-panel');
+
+        if (controlPanel) resizeState.startWidthLeft = controlPanel.offsetWidth;
+        if (workspace) resizeState.startWidthMiddle = workspace.offsetWidth;
+        if (resultPanel) resizeState.startWidthRight = resultPanel.offsetWidth;
+    }
 
     // 添加拖拽样式
     document.body.classList.add('resizing');
@@ -3313,20 +3331,39 @@ function handleResize(e) {
     if (!resizeState.isResizing) return;
 
     const delta = e.clientX - resizeState.startX;
-    const modeHome = document.getElementById('mode-home');
-    const controlHome = document.getElementById('control-home');
-    const resultPanel = document.querySelector('.result-panel');
 
-    if (resizeState.currentHandle === 'left') {
-        // 左侧手柄：调整左栏宽度，中间栏自动适应剩余空间
-        const newLeftWidth = Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(800, resizeState.startWidthLeft + delta));
-        if (modeHome) modeHome.style.width = `${newLeftWidth}px`;
-        // 中间栏使用 flex: 1，自动填充剩余空间，无需手动设置宽度
-    } else if (resizeState.currentHandle === 'right') {
-        // 右侧手柄：调整右栏宽度，中间栏自动适应剩余空间
-        const newRightWidth = Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(600, resizeState.startWidthRight - delta));
-        if (resultPanel) resultPanel.style.width = `${newRightWidth}px`;
-        // 中间栏使用 flex: 1，自动填充剩余空间，无需手动设置宽度
+    // 获取当前活动模式
+    const activeMode = document.querySelector('.workspace-mode.active') || document.querySelector('#mode-home.active');
+    const isHomeMode = activeMode && activeMode.id === 'mode-home';
+
+    if (isHomeMode) {
+        // 首页模式
+        const modeHome = document.getElementById('mode-home');
+        const resultPanel = document.querySelector('.result-panel');
+
+        if (resizeState.currentHandle === 'left') {
+            // 左侧手柄：调整左栏宽度
+            const newLeftWidth = Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(RESIZE_CONSTANTS.MAX_LEFT_WIDTH, resizeState.startWidthLeft + delta));
+            if (modeHome) modeHome.style.width = `${newLeftWidth}px`;
+        } else if (resizeState.currentHandle === 'right') {
+            // 右侧手柄：调整右栏宽度
+            const newRightWidth = Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(RESIZE_CONSTANTS.MAX_RIGHT_WIDTH, resizeState.startWidthRight - delta));
+            if (resultPanel) resultPanel.style.width = `${newRightWidth}px`;
+        }
+    } else {
+        // 其他模式：左栏是 control-panel，右栏是 result-panel
+        const controlPanel = document.getElementById('control-panel');
+        const resultPanel = document.querySelector('.result-panel');
+
+        if (resizeState.currentHandle === 'left') {
+            // 左侧手柄：调整控制面板宽度
+            const newLeftWidth = Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(500, resizeState.startWidthLeft + delta));
+            if (controlPanel) controlPanel.style.width = `${newLeftWidth}px`;
+        } else if (resizeState.currentHandle === 'right') {
+            // 右侧手柄：调整结果面板宽度
+            const newRightWidth = Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(RESIZE_CONSTANTS.MAX_RIGHT_WIDTH, resizeState.startWidthRight - delta));
+            if (resultPanel) resultPanel.style.width = `${newRightWidth}px`;
+        }
     }
 }
 
@@ -3352,15 +3389,33 @@ function stopResize() {
 // 保存宽度到 localStorage
 function saveWidths() {
     try {
+        // 获取当前活动模式
+        const activeMode = document.querySelector('.workspace-mode.active') || document.querySelector('#mode-home.active');
+        const isHomeMode = activeMode && activeMode.id === 'mode-home';
+        const modeKey = isHomeMode ? 'home' : 'other';
+
         const modeHome = document.getElementById('mode-home');
+        const controlPanel = document.getElementById('control-panel');
         const resultPanel = document.querySelector('.result-panel');
 
-        const widths = {
-            left: modeHome ? modeHome.offsetWidth : 480,
-            right: resultPanel ? resultPanel.offsetWidth : 280
-        };
+        // 获取已保存的数据
+        const saved = localStorage.getItem(RESIZE_CONSTANTS.STORAGE_KEY);
+        const allWidths = saved ? JSON.parse(saved) : {};
 
-        localStorage.setItem(RESIZE_CONSTANTS.STORAGE_KEY, JSON.stringify(widths));
+        // 更新当前模式的宽度
+        if (isHomeMode) {
+            allWidths.home = {
+                left: modeHome ? modeHome.offsetWidth : 480,
+                right: resultPanel ? resultPanel.offsetWidth : 280
+            };
+        } else {
+            allWidths.other = {
+                left: controlPanel ? controlPanel.offsetWidth : 320,
+                right: resultPanel ? resultPanel.offsetWidth : 280
+            };
+        }
+
+        localStorage.setItem(RESIZE_CONSTANTS.STORAGE_KEY, JSON.stringify(allWidths));
     } catch (error) {
         console.error('Failed to save panel widths:', error);
     }
@@ -3372,11 +3427,72 @@ function loadSavedWidths() {
         const saved = localStorage.getItem(RESIZE_CONSTANTS.STORAGE_KEY);
         if (!saved) return;
 
-        const widths = JSON.parse(saved);
-        const modeHome = document.getElementById('mode-home');
-        const resultPanel = document.querySelector('.result-panel');
+        const allWidths = JSON.parse(saved);
 
-        // 只在首页模式下应用保存的宽度
+        // 获取当前活动模式
+        const activeMode = document.querySelector('.workspace-mode.active') || document.querySelector('#mode-home.active');
+        const isHomeMode = activeMode && activeMode.id === 'mode-home';
+
+        if (isHomeMode && allWidths.home) {
+            const modeHome = document.getElementById('mode-home');
+            const resultPanel = document.querySelector('.result-panel');
+
+            if (modeHome && allWidths.home.left) {
+                modeHome.style.width = `${allWidths.home.left}px`;
+            }
+            if (resultPanel && allWidths.home.right) {
+                resultPanel.style.width = `${allWidths.home.right}px`;
+            }
+        } else if (!isHomeMode && allWidths.other) {
+            const controlPanel = document.getElementById('control-panel');
+            const resultPanel = document.querySelector('.result-panel');
+
+            if (controlPanel && allWidths.other.left) {
+                controlPanel.style.width = `${allWidths.other.left}px`;
+            }
+            if (resultPanel && allWidths.other.right) {
+                resultPanel.style.width = `${allWidths.other.right}px`;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load panel widths:', error);
+    }
+}
+
+// 应用指定模式的宽度设置
+function applyModeWidths(mode) {
+    try {
+        const saved = localStorage.getItem(RESIZE_CONSTANTS.STORAGE_KEY);
+        if (!saved) return;
+
+        const allWidths = JSON.parse(saved);
+        const isHomeMode = mode === 'home';
+
+        if (isHomeMode && allWidths.home) {
+            const modeHome = document.getElementById('mode-home');
+            const resultPanel = document.querySelector('.result-panel');
+
+            if (modeHome && allWidths.home.left) {
+                modeHome.style.width = `${allWidths.home.left}px`;
+            }
+            if (resultPanel && allWidths.home.right) {
+                resultPanel.style.width = `${allWidths.home.right}px`;
+            }
+        } else if (!isHomeMode && allWidths.other) {
+            const controlPanel = document.getElementById('control-panel');
+            const resultPanel = document.querySelector('.result-panel');
+
+            if (controlPanel && allWidths.other.left) {
+                controlPanel.style.width = `${allWidths.other.left}px`;
+            }
+            if (resultPanel && allWidths.other.right) {
+                resultPanel.style.width = `${allWidths.other.right}px`;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to apply mode widths:', error);
+    }
+}
         if (document.getElementById('mode-home')?.classList.contains('active')) {
             if (modeHome && widths.left) {
                 modeHome.style.width = `${Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(800, widths.left))}px`;
