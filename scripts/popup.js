@@ -1275,6 +1275,7 @@ async function handleHomeGenerate() {
 
 // 线稿模式生成处理
 async function handleSketchGenerate() {
+    const generatingStatus = document.getElementById('sketch-generating-status');
     try {
         if (!state.apiKey) {
             updateStatus('请先设置 API Key', 'error');
@@ -1285,6 +1286,11 @@ async function handleSketchGenerate() {
         if (!elements.sketchCanvas) {
             updateStatus('画布未初始化', 'error');
             return;
+        }
+
+        // 显示生成中状态
+        if (generatingStatus) {
+            generatingStatus.style.display = 'block';
         }
 
         const sketchData = elements.sketchCanvas.toDataURL('image/png');
@@ -1324,6 +1330,11 @@ async function handleSketchGenerate() {
     } catch (error) {
         console.error('Sketch generation error:', error);
         updateStatus('生成失败: ' + error.message, 'error');
+    } finally {
+        // 隐藏生成中状态
+        if (generatingStatus) {
+            generatingStatus.style.display = 'none';
+        }
     }
 }
 
@@ -1423,6 +1434,7 @@ function updateHomeStatus(message, type = '') {
 
 // 局部修改模式生成处理
 async function handleMaskGenerate() {
+    const generatingStatus = document.getElementById('mask-generating-status');
     try {
         if (!state.apiKey) {
             updateStatus('请先设置 API Key', 'error');
@@ -1467,6 +1479,11 @@ async function handleMaskGenerate() {
             size: imageSize?.value || '1024*1024',
             promptExtend: promptExtend?.checked ?? true
         };
+
+        // 显示生成中状态
+        if (generatingStatus) {
+            generatingStatus.style.display = 'block';
+        }
 
         // 优化提示词（中译英+优化）
         const optimized = await optimizePromptText(prompt, params.negativePrompt, '局部修改模式');
@@ -1513,6 +1530,10 @@ async function handleMaskGenerate() {
     } finally {
         const maskSendBtn = document.getElementById('mask-send');
         if (maskSendBtn) maskSendBtn.disabled = false;
+        // 隐藏生成中状态
+        if (generatingStatus) {
+            generatingStatus.style.display = 'none';
+        }
     }
 }
 
