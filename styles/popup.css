@@ -1218,8 +1218,9 @@ body.resizing * {
     cursor: col-resize !important;
 }
 
-/* 只在首页模式下显示拖拽手柄 */
-.main-content:has(#mode-home.active) .resize-handle {
+/* 在首页模式和建筑大师模式下显示拖拽手柄 */
+.main-content:has(#mode-home.active) .resize-handle,
+.main-content:has(#mode-architect.active) .resize-handle.architect-only {
     display: block;
 }
 
@@ -1227,6 +1228,30 @@ body.resizing * {
 .main-content:has(#mode-style.active) .resize-handle,
 .main-content:has(#mode-mask.active) .resize-handle {
     display: none;
+}
+
+/* 建筑大师模式：控制面板支持宽度调整 */
+.main-content:has(#mode-architect.active) .control-panel {
+    position: relative;
+    width: 320px;
+    min-width: 200px;
+    max-width: 500px;
+    flex: 0 0 auto;
+}
+
+/* 建筑大师模式：工作区自适应 */
+.main-content:has(#mode-architect.active) .workspace {
+    flex: 1;
+    min-width: 300px;
+}
+
+/* 建筑大师模式的拖拽手柄定位 */
+.resize-handle.architect-only {
+    position: absolute;
+    left: 320px;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
 }
 
 /* 左侧控制面板 */

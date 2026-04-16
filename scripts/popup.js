@@ -1610,9 +1610,11 @@ function updateMode(mode) {
     // 更新提示词placeholder
     updatePromptPlaceholder(mode);
 
-    // 切换模式时加载保存的宽度（只在首页模式）
+    // 切换模式时加载保存的宽度
     if (mode === 'home') {
         loadSavedWidths();
+    } else if (mode === 'architect') {
+        loadArchitectWidths();
     }
 }
 
@@ -3270,6 +3272,7 @@ const RESIZE_CONSTANTS = {
 function initResizeHandles() {
     const leftHandle = document.getElementById('resize-left');
     const rightHandle = document.getElementById('resize-right');
+    const architectLeftHandle = document.getElementById('resize-architect-left');
 
     if (leftHandle) {
         leftHandle.addEventListener('mousedown', (e) => startResize(e, 'left'));
@@ -3277,9 +3280,13 @@ function initResizeHandles() {
     if (rightHandle) {
         rightHandle.addEventListener('mousedown', (e) => startResize(e, 'right'));
     }
+    if (architectLeftHandle) {
+        architectLeftHandle.addEventListener('mousedown', (e) => startResize(e, 'architect-left'));
+    }
 
     // 加载保存的宽度
     loadSavedWidths();
+    loadArchitectWidths();
 }
 
 // 开始拖拽
@@ -3288,6 +3295,23 @@ function startResize(e, handle) {
     resizeState.isResizing = true;
     resizeState.currentHandle = handle;
     resizeState.startX = e.clientX;
+
+    // 建筑大师模式
+    if (handle === 'architect-left') {
+        const controlPanel = document.getElementById('control-panel');
+        if (controlPanel) resizeState.startWidthLeft = controlPanel.offsetWidth;
+
+        // 添加拖拽样式
+        document.body.classList.add('resizing');
+        const handleEl = document.getElementById('resize-architect-left');
+        if (handleEl) handleEl.classList.add('resizing');
+
+        // 绑定全局事件
+        document.addEventListener('mousemove', handleResize);
+        document.addEventListener('mouseup', stopResize);
+        document.addEventListener('mouseleave', stopResize);
+        return;
+    }
 
     const modeHome = document.getElementById('mode-home');
     const controlHome = document.getElementById('control-home');
@@ -3313,6 +3337,17 @@ function handleResize(e) {
     if (!resizeState.isResizing) return;
 
     const delta = e.clientX - resizeState.startX;
+
+    // 建筑大师模式
+    if (resizeState.currentHandle === 'architect-left') {
+        const controlPanel = document.getElementById('control-panel');
+        if (controlPanel) {
+            const newLeftWidth = Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(500, resizeState.startWidthLeft + delta));
+            controlPanel.style.width = `${newLeftWidth}px`;
+        }
+        return;
+    }
+
     const modeHome = document.getElementById('mode-home');
     const controlHome = document.getElementById('control-home');
     const resultPanel = document.querySelector('.result-panel');
@@ -3336,6 +3371,21 @@ function stopResize() {
 
     resizeState.isResizing = false;
     document.body.classList.remove('resizing');
+
+    // 处理建筑大师模式的手柄
+    if (resizeState.currentHandle === 'architect-left') {
+        const handleEl = document.getElementById('resize-architect-left');
+        if (handleEl) handleEl.classList.remove('resizing');
+
+        // 移除全局事件
+        document.removeEventListener('mousemove', handleResize);
+        document.removeEventListener('mouseup', stopResize);
+        document.removeEventListener('mouseleave', stopResize);
+
+        // 保存宽度
+        saveArchitectWidths();
+        return;
+    }
 
     const handleEl = document.getElementById(`resize-${resizeState.currentHandle}`);
     if (handleEl) handleEl.classList.remove('resizing');
@@ -3366,6 +3416,21 @@ function saveWidths() {
     }
 }
 
+// 保存建筑大师模式宽度到 localStorage
+function saveArchitectWidths() {
+    try {
+        const controlPanel = document.getElementById('control-panel');
+
+        const widths = {
+            architectLeft: controlPanel ? controlPanel.offsetWidth : 320
+        };
+
+        localStorage.setItem('architect_panel_widths', JSON.stringify(widths));
+    } catch (error) {
+        console.error('Failed to save architect panel widths:', error);
+    }
+}
+
 // 从 localStorage 加载宽度
 function loadSavedWidths() {
     try {
@@ -3388,6 +3453,26 @@ function loadSavedWidths() {
         }
     } catch (error) {
         console.error('Failed to load panel widths:', error);
+    }
+}
+
+// 从 localStorage 加载建筑大师模式宽度
+function loadArchitectWidths() {
+    try {
+        const saved = localStorage.getItem('architect_panel_widths');
+        if (!saved) return;
+
+        const widths = JSON.parse(saved);
+        const controlPanel = document.getElementById('control-panel');
+
+        // 只在建筑大师模式下应用保存的宽度
+        if (document.getElementById('mode-architect')?.classList.contains('active')) {
+            if (controlPanel && widths.architectLeft) {
+                controlPanel.style.width = `${Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(500, widths.architectLeft))}px`;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load architect panel widths:', error);
     }
 }
 
