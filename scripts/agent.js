@@ -126,7 +126,7 @@ const AgentWorkflow = (function() {
     }
 
     /**
-     * 节点B：参数映射
+     * 节点B：参数映射（增强版 - 支持智能补充默认参数）
      * @param {Object} structuredTags - 结构化标签
      * @returns {Promise<Object>} 匹配的专业参数
      */
@@ -141,86 +141,241 @@ const AgentWorkflow = (function() {
         };
 
         const input = JSON.stringify(structuredTags).toLowerCase();
+        const subject = (structuredTags.subject || '').toLowerCase();
+        const scale = (structuredTags.scale || '').toLowerCase();
+        const timeLighting = (structuredTags.time_lighting || '').toLowerCase();
+        const moodStyle = (structuredTags.mood_style || '').toLowerCase();
 
-        // 映射镜头参数
-        if (input.includes('宏大') || input.includes('全景') || input.includes('鸟瞰') ||
-            structuredTags.scale?.includes('宏大')) {
+        // ========== 1. 镜头参数映射（智能推断+默认补充） ==========
+        let hasLensMatched = false;
+
+        // 根据scale匹配
+        if (scale.includes('宏大') || scale.includes('全景') || scale.includes('鸟瞰') ||
+            input.includes('城市') || input.includes('天际线')) {
             const lens = kb.lens_params.cityscape;
             if (lens) {
                 params.lens.push(lens.lens, lens.aperture);
                 if (lens.view) params.lens.push(lens.view);
+                hasLensMatched = true;
             }
-        } else if (input.includes('建筑') || input.includes('室内') || input.includes('空间') ||
-                   structuredTags.scale?.includes('建筑')) {
+        } else if (scale.includes('特写') || scale.includes('人像') || scale.includes('人物') ||
+                   subject.includes('人') || subject.includes('肖像')) {
+            const lens = kb.lens_params.portrait;
+            if (lens) {
+                params.lens.push(lens.lens, lens.aperture);
+                if (lens.effect) params.lens.push(lens.effect);
+                hasLensMatched = true;
+            }
+        } else if (scale.includes('建筑') || subject.includes('建筑') ||
+                   subject.includes('室内') || subject.includes('空间') ||
+                   subject.includes('楼') || subject.includes('房') ||
+                   subject.includes('博物馆') || subject.includes('美术馆')) {
             const lens = kb.lens_params.architecture;
             if (lens) {
                 params.lens.push(lens.lens, lens.aperture);
+                hasLensMatched = true;
             }
         }
 
-        // 映射光影参数
-        const timeLower = (structuredTags.time_lighting || '').toLowerCase();
-        if (timeLower.includes('黄昏') || timeLower.includes('傍晚')) {
-            const lighting = kb.lighting_params.blue_hour;
-            if (lighting) {
-                params.lighting.push(lighting.lighting);
-                if (lighting.quality) params.lighting.push(lighting.quality);
-            }
-        } else if (timeLower.includes('早晨') || timeLower.includes('日出') || timeLower.includes('黄金')) {
-            const lighting = kb.lighting_params.golden_hour;
-            if (lighting) {
-                params.lighting.push(lighting.lighting);
-                if (lighting.quality) params.lighting.push(lighting.quality);
-            }
-        } else if (timeLower.includes('阴天') || timeLower.includes('雨天')) {
-            const lighting = kb.lighting_params.overcast;
-            if (lighting) {
-                params.lighting.push(lighting.lighting);
-            }
-        } else if (timeLower.includes('电影')) {
-            const lighting = kb.lighting_params.cinematic;
-            if (lighting) {
-                params.lighting.push(lighting.lighting);
-                if (lighting.effect) params.lighting.push(lighting.effect);
-            }
-        }
-
-        // 映射胶片/渲染参数
-        const moodLower = (structuredTags.mood_style || '').toLowerCase();
-        if (moodLower.includes('赛博') || moodLower.includes('朋克')) {
-            const film = kb.film_params.cyberpunk;
-            if (film) {
-                params.film.push(film.film);
-                if (film.effect) params.film.push(film.effect);
-            }
-        } else if (moodLower.includes('电影')) {
-            const film = kb.film_params.cinematic;
-            if (film) {
-                params.film.push(film.film);
-                if (film.quality) params.film.push(film.quality);
-            }
-        } else {
-            const film = kb.film_params.realistic;
-            if (film) {
-                params.film.push(film.film);
-                if (film.quality) params.film.push(film.quality);
-            }
-        }
-
-        // 映射风格参数
-        const styleKeywords = kb.mapping_rules?.style_keywords || {};
-        for (const [keyword, styleKey] of Object.entries(styleKeywords)) {
-            if (input.includes(keyword)) {
-                const style = kb.style_params[styleKey];
-                if (style) {
-                    params.style.push(style.style);
-                    if (style.elements) params.style.push(style.elements);
+        // 如果没有匹配到镜头参数，根据主体智能推断默认值
+        if (!hasLensMatched) {
+            if (subject.includes('风景') || subject.includes('自然') || subject.includes('山水')) {
+                // 风景默认用广角
+                const lens = kb.lens_params.cityscape; // 复用cityscape的广角
+                if (lens) {
+                    params.lens.push('14mm ultra-wide angle', 'f/11');
+                    hasLensMatched = true;
+                }
+            } else if (subject.includes('产品') || subject.includes('物品') || subject.includes('静物')) {
+                // 产品摄影默认用标准镜头
+                const lens = kb.lens_params.standard;
+                if (lens) {
+                    params.lens.push(lens.lens, lens.aperture);
+                    hasLensMatched = true;
+                }
+            } else {
+                // 其他场景默认用建筑/标准镜头
+                const lens = kb.lens_params.architecture;
+                if (lens) {
+                    params.lens.push(lens.lens, lens.aperture);
+                    hasLensMatched = true;
                 }
             }
         }
 
-        // 添加质量修饰词
+        // ========== 2. 光影参数映射（智能推断+默认补充） ==========
+        let hasLightingMatched = false;
+
+        if (timeLighting.includes('黄昏') || timeLighting.includes('傍晚') || timeLighting.includes('蓝调')) {
+            const lighting = kb.lighting_params.blue_hour;
+            if (lighting) {
+                params.lighting.push(lighting.lighting);
+                if (lighting.quality) params.lighting.push(lighting.quality);
+                hasLightingMatched = true;
+            }
+        } else if (timeLighting.includes('日出') || timeLighting.includes('早晨') || timeLighting.includes('黄金')) {
+            const lighting = kb.lighting_params.golden_hour;
+            if (lighting) {
+                params.lighting.push(lighting.lighting);
+                if (lighting.quality) params.lighting.push(lighting.quality);
+                hasLightingMatched = true;
+            }
+        } else if (timeLighting.includes('阴天') || timeLighting.includes('雨天') || timeLighting.includes('多云')) {
+            const lighting = kb.lighting_params.overcast;
+            if (lighting) {
+                params.lighting.push(lighting.lighting);
+                hasLightingMatched = true;
+            }
+        } else if (timeLighting.includes('夜晚') || timeLighting.includes('夜景') || timeLighting.includes('夜间')) {
+            const lighting = kb.lighting_params.night;
+            if (lighting) {
+                params.lighting.push(lighting.lighting);
+                if (lighting.effect) params.lighting.push(lighting.effect);
+                hasLightingMatched = true;
+            }
+        } else if (timeLighting.includes('电影') || timeLighting.includes('戏剧') || moodStyle.includes('电影')) {
+            const lighting = kb.lighting_params.cinematic;
+            if (lighting) {
+                params.lighting.push(lighting.lighting);
+                if (lighting.effect) params.lighting.push(lighting.effect);
+                hasLightingMatched = true;
+            }
+        } else if (timeLighting.includes('日落') || timeLighting.includes('夕阳')) {
+            const lighting = kb.lighting_params.sunset;
+            if (lighting) {
+                params.lighting.push(lighting.lighting);
+                if (lighting.quality) params.lighting.push(lighting.quality);
+                hasLightingMatched = true;
+            }
+        } else if (timeLighting.includes('黎明') || timeLighting.includes('清晨')) {
+            const lighting = kb.lighting_params.dawn;
+            if (lighting) {
+                params.lighting.push(lighting.lighting);
+                if (lighting.quality) params.lighting.push(lighting.quality);
+                hasLightingMatched = true;
+            }
+        }
+
+        // 如果没有匹配到光影参数，根据场景智能添加默认值
+        if (!hasLightingMatched) {
+            if (moodStyle.includes('赛博') || moodStyle.includes('朋克')) {
+                // 赛博朋克默认夜景灯光
+                params.lighting.push('night scene', 'neon lights', 'glowing atmosphere');
+            } else if (subject.includes('室内') || subject.includes('建筑')) {
+                // 室内/建筑默认柔和日光
+                params.lighting.push('natural daylight', 'soft window light');
+            } else if (subject.includes('人像') || subject.includes('人物')) {
+                // 人像默认柔和光影
+                params.lighting.push('soft diffused light', 'flattering illumination');
+            } else {
+                // 其他场景默认晴天自然光
+                params.lighting.push('natural sunlight', 'clear sky lighting');
+            }
+            hasLightingMatched = true;
+        }
+
+        // ========== 3. 胶片/渲染参数映射（智能推断+默认补充） ==========
+        let hasFilmMatched = false;
+
+        if (moodStyle.includes('赛博') || moodStyle.includes('朋克')) {
+            const film = kb.film_params.cyberpunk;
+            if (film) {
+                params.film.push(film.film);
+                if (film.effect) params.film.push(film.effect);
+                hasFilmMatched = true;
+            }
+        } else if (moodStyle.includes('电影') || moodStyle.includes('cinematic')) {
+            const film = kb.film_params.cinematic;
+            if (film) {
+                params.film.push(film.film);
+                if (film.quality) params.film.push(film.quality);
+                hasFilmMatched = true;
+            }
+        } else if (moodStyle.includes('鲜艳') || moodStyle.includes('饱和') || moodStyle.includes('色彩')) {
+            const film = kb.film_params.vibrant;
+            if (film) {
+                params.film.push(film.film);
+                if (film.quality) params.film.push(film.quality);
+                hasFilmMatched = true;
+            }
+        } else if (moodStyle.includes('渲染') || moodStyle.includes('3d') || moodStyle.includes('cg')) {
+            const film = kb.film_params.render;
+            if (film) {
+                params.film.push(film.engine);
+                if (film.quality) params.film.push(film.quality);
+                hasFilmMatched = true;
+            }
+        }
+
+        // 如果没有匹配到胶片参数，默认使用真实胶片
+        if (!hasFilmMatched) {
+            const film = kb.film_params.realistic;
+            if (film) {
+                params.film.push(film.film);
+                if (film.quality) params.film.push(film.quality);
+                hasFilmMatched = true;
+            }
+        }
+
+        // ========== 4. 风格参数映射（智能推断+默认补充） ==========
+        let hasStyleMatched = false;
+
+        // 根据mood_style匹配
+        const styleKeywords = kb.mapping_rules?.style_keywords || {};
+        for (const [keyword, styleKey] of Object.entries(styleKeywords)) {
+            if (input.includes(keyword) || moodStyle.includes(keyword)) {
+                const style = kb.style_params[styleKey];
+                if (style) {
+                    params.style.push(style.style);
+                    if (style.elements) params.style.push(style.elements);
+                    hasStyleMatched = true;
+                }
+            }
+        }
+
+        // 如果没有匹配到风格参数，根据主体智能推断默认风格
+        if (!hasStyleMatched) {
+            if (subject.includes('建筑') || subject.includes('博物馆') || subject.includes('美术馆')) {
+                // 建筑类默认现代风格
+                const style = kb.style_params.modern;
+                if (style) {
+                    params.style.push(style.style);
+                    if (style.elements) params.style.push(style.elements);
+                    hasStyleMatched = true;
+                }
+            } else if (subject.includes('室内') || subject.includes('空间')) {
+                // 室内默认极简风格
+                const style = kb.style_params.minimalist;
+                if (style) {
+                    params.style.push(style.style);
+                    if (style.elements) params.style.push(style.elements);
+                    hasStyleMatched = true;
+                }
+            } else if (subject.includes('风景') || subject.includes('自然')) {
+                // 风景默认有机/自然风格
+                params.style.push('natural landscape', 'organic composition');
+                hasStyleMatched = true;
+            } else if (subject.includes('人像') || subject.includes('人物')) {
+                // 人像默认真实感风格
+                params.style.push('portrait photography', 'natural pose');
+                hasStyleMatched = true;
+            } else {
+                // 其他场景默认现代风格
+                const style = kb.style_params.modern;
+                if (style) {
+                    params.style.push(style.style);
+                    hasStyleMatched = true;
+                }
+            }
+        }
+
+        // ========== 5. 质量修饰词（始终添加） ==========
         params.quality = kb.quality_modifiers || ['masterpiece', 'best quality', 'highly detailed'];
+
+        // 记录智能补充的参数数量
+        const supplementedCount = [!hasLensMatched, !hasLightingMatched, !hasFilmMatched, !hasStyleMatched]
+            .filter(x => x === false).length;
+        console.log(`[AgentWorkflow] Parameters mapped. Auto-supplemented defaults for ${4 - supplementedCount} categories.`);
 
         return params;
     }
