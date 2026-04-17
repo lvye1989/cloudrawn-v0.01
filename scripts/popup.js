@@ -3940,7 +3940,7 @@ async function handleArchitectGenerate() {
         }
 
         // 添加到结果预览栏
-        addToResultList(result, fullPrompt);
+        addResult(result, fullPrompt);
         updateArchitectStatus('生成成功');
 
     } catch (error) {
