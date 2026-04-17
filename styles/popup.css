@@ -1218,19 +1218,49 @@ body.resizing * {
     cursor: col-resize !important;
 }
 
-/* 在首页模式和建筑大师模式下显示拖拽手柄 */
+/* 在首页模式和所有工作区模式下显示拖拽手柄 */
 .main-content:has(#mode-home.active) .resize-handle,
-.main-content:has(#mode-architect.active) .resize-handle.architect-only {
+.main-content:has(#mode-sketch.active) .resize-handle,
+.main-content:has(#mode-style.active) .resize-handle,
+.main-content:has(#mode-mask.active) .resize-handle,
+.main-content:has(#mode-architect.active) .resize-handle {
     display: block;
 }
 
-.main-content:has(#mode-sketch.active) .resize-handle,
-.main-content:has(#mode-style.active) .resize-handle,
-.main-content:has(#mode-mask.active) .resize-handle {
-    display: none;
+/* 首页模式下手柄样式 */
+.main-content:has(#mode-home.active) .resize-handle-left,
+.main-content:has(#mode-home.active) .resize-handle-right {
+    display: block;
 }
 
-/* 建筑大师模式：控制面板支持宽度调整 */
+/* 工作区模式下隐藏首页模式的手柄 */
+.main-content:has(#mode-sketch.active) #resize-left,
+.main-content:has(#mode-sketch.active) #resize-right,
+.main-content:has(#mode-style.active) #resize-left,
+.main-content:has(#mode-style.active) #resize-right,
+.main-content:has(#mode-mask.active) #resize-left,
+.main-content:has(#mode-mask.active) #resize-right,
+.main-content:has(#mode-architect.active) #resize-left,
+.main-content:has(#mode-architect.active) #resize-right {
+    display: none !important;
+}
+
+/* 工作区模式下手柄样式 */
+.main-content:has(#mode-sketch.active) #resize-workspace-left,
+.main-content:has(#mode-sketch.active) #resize-workspace-right,
+.main-content:has(#mode-style.active) #resize-workspace-left,
+.main-content:has(#mode-style.active) #resize-workspace-right,
+.main-content:has(#mode-mask.active) #resize-workspace-left,
+.main-content:has(#mode-mask.active) #resize-workspace-right,
+.main-content:has(#mode-architect.active) #resize-workspace-left,
+.main-content:has(#mode-architect.active) #resize-workspace-right {
+    display: block !important;
+}
+
+/* 工作区模式：控制面板支持宽度调整 */
+.main-content:has(#mode-sketch.active) .control-panel,
+.main-content:has(#mode-style.active) .control-panel,
+.main-content:has(#mode-mask.active) .control-panel,
 .main-content:has(#mode-architect.active) .control-panel {
     position: relative;
     width: 320px;
@@ -1239,19 +1269,19 @@ body.resizing * {
     flex: 0 0 auto;
 }
 
-/* 建筑大师模式：工作区自适应 */
+/* 工作区模式：工作区自适应 */
+.main-content:has(#mode-sketch.active) .workspace,
+.main-content:has(#mode-style.active) .workspace,
+.main-content:has(#mode-mask.active) .workspace,
 .main-content:has(#mode-architect.active) .workspace {
     flex: 1;
     min-width: 300px;
 }
 
-/* 建筑大师模式的拖拽手柄定位 */
-.resize-handle.architect-only {
-    position: absolute;
-    left: 320px;
-    top: 0;
-    bottom: 0;
-    z-index: 100;
+/* 工作区模式下的拖拽手柄 */
+#resize-workspace-left,
+#resize-workspace-right {
+    display: none;
 }
 
 /* 左侧控制面板 */

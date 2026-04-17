@@ -891,6 +891,9 @@
             <!-- 右侧拖拽手柄（中间栏和右栏之间） -->
             <div class="resize-handle resize-handle-right" id="resize-right" data-resize="right"></div>
 
+            <!-- 左侧拖拽手柄（控制面板和工作区之间） -->
+            <div class="resize-handle resize-handle-left" id="resize-workspace-left" data-resize="workspace-left"></div>
+
             <!-- 中间工作区（其他模式） -->
             <section class="workspace">
                 <!-- 线稿绘制模式 -->
@@ -1131,9 +1134,6 @@
 
                 <!-- 建筑大师模式 -->
                 <div class="workspace-mode" id="mode-architect">
-                    <!-- 左侧拖拽手柄（建筑大师模式） -->
-                    <div class="resize-handle resize-handle-left architect-only" id="resize-architect-left" data-resize="architect-left"></div>
-
                     <!-- 建筑参考图上传区域 -->
                     <div class="multi-image-section">
                         <div class="section-header">
@@ -1185,6 +1185,9 @@
                     </div>
                 </div>
             </section>
+
+            <!-- 右侧拖拽手柄（工作区和结果面板之间） -->
+            <div class="resize-handle resize-handle-right" id="resize-workspace-right" data-resize="workspace-right"></div>
 
             <!-- 生成结果预览栏 -->
             <aside class="result-panel">

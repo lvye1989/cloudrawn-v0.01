@@ -1613,8 +1613,9 @@ function updateMode(mode) {
     // 切换模式时加载保存的宽度
     if (mode === 'home') {
         loadSavedWidths();
-    } else if (mode === 'architect') {
-        loadArchitectWidths();
+    } else {
+        // 线稿绘制、风格迁移、局部修改、建筑大师模式都使用工作区宽度
+        loadWorkspaceWidths();
     }
 }
 
@@ -3272,7 +3273,8 @@ const RESIZE_CONSTANTS = {
 function initResizeHandles() {
     const leftHandle = document.getElementById('resize-left');
     const rightHandle = document.getElementById('resize-right');
-    const architectLeftHandle = document.getElementById('resize-architect-left');
+    const workspaceLeftHandle = document.getElementById('resize-workspace-left');
+    const workspaceRightHandle = document.getElementById('resize-workspace-right');
 
     if (leftHandle) {
         leftHandle.addEventListener('mousedown', (e) => startResize(e, 'left'));
@@ -3280,13 +3282,16 @@ function initResizeHandles() {
     if (rightHandle) {
         rightHandle.addEventListener('mousedown', (e) => startResize(e, 'right'));
     }
-    if (architectLeftHandle) {
-        architectLeftHandle.addEventListener('mousedown', (e) => startResize(e, 'architect-left'));
+    if (workspaceLeftHandle) {
+        workspaceLeftHandle.addEventListener('mousedown', (e) => startResize(e, 'workspace-left'));
+    }
+    if (workspaceRightHandle) {
+        workspaceRightHandle.addEventListener('mousedown', (e) => startResize(e, 'workspace-right'));
     }
 
     // 加载保存的宽度
     loadSavedWidths();
-    loadArchitectWidths();
+    loadWorkspaceWidths();
 }
 
 // 开始拖拽
@@ -3296,14 +3301,31 @@ function startResize(e, handle) {
     resizeState.currentHandle = handle;
     resizeState.startX = e.clientX;
 
-    // 建筑大师模式
-    if (handle === 'architect-left') {
+    // 工作区模式下的左侧手柄（控制面板和工作区之间）
+    if (handle === 'workspace-left') {
         const controlPanel = document.getElementById('control-panel');
         if (controlPanel) resizeState.startWidthLeft = controlPanel.offsetWidth;
 
         // 添加拖拽样式
         document.body.classList.add('resizing');
-        const handleEl = document.getElementById('resize-architect-left');
+        const handleEl = document.getElementById('resize-workspace-left');
+        if (handleEl) handleEl.classList.add('resizing');
+
+        // 绑定全局事件
+        document.addEventListener('mousemove', handleResize);
+        document.addEventListener('mouseup', stopResize);
+        document.addEventListener('mouseleave', stopResize);
+        return;
+    }
+
+    // 工作区模式下的右侧手柄（工作区和结果面板之间）
+    if (handle === 'workspace-right') {
+        const resultPanel = document.querySelector('.result-panel');
+        if (resultPanel) resizeState.startWidthRight = resultPanel.offsetWidth;
+
+        // 添加拖拽样式
+        document.body.classList.add('resizing');
+        const handleEl = document.getElementById('resize-workspace-right');
         if (handleEl) handleEl.classList.add('resizing');
 
         // 绑定全局事件
@@ -3338,12 +3360,26 @@ function handleResize(e) {
 
     const delta = e.clientX - resizeState.startX;
 
-    // 建筑大师模式
-    if (resizeState.currentHandle === 'architect-left') {
+    // 工作区模式下的左侧手柄：调整控制面板宽度，工作区自动适应
+    if (resizeState.currentHandle === 'workspace-left') {
         const controlPanel = document.getElementById('control-panel');
         if (controlPanel) {
+            // 向左拖动（delta为负）时，控制面板变窄，工作区变大
+            // 向右拖动（delta为正）时，控制面板变宽，工作区变小
             const newLeftWidth = Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(500, resizeState.startWidthLeft + delta));
             controlPanel.style.width = `${newLeftWidth}px`;
+        }
+        return;
+    }
+
+    // 工作区模式下的右侧手柄：调整结果面板宽度，工作区自动适应
+    if (resizeState.currentHandle === 'workspace-right') {
+        const resultPanel = document.querySelector('.result-panel');
+        if (resultPanel) {
+            // 向左拖动（delta为负）时，结果面板变宽，工作区变小
+            // 向右拖动（delta为正）时，结果面板变窄，工作区变大
+            const newRightWidth = Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(600, resizeState.startWidthRight - delta));
+            resultPanel.style.width = `${newRightWidth}px`;
         }
         return;
     }
@@ -3372,10 +3408,12 @@ function stopResize() {
     resizeState.isResizing = false;
     document.body.classList.remove('resizing');
 
-    // 处理建筑大师模式的手柄
-    if (resizeState.currentHandle === 'architect-left') {
-        const handleEl = document.getElementById('resize-architect-left');
-        if (handleEl) handleEl.classList.remove('resizing');
+    // 处理工作区模式的手柄
+    if (resizeState.currentHandle === 'workspace-left' || resizeState.currentHandle === 'workspace-right') {
+        const leftHandleEl = document.getElementById('resize-workspace-left');
+        const rightHandleEl = document.getElementById('resize-workspace-right');
+        if (leftHandleEl) leftHandleEl.classList.remove('resizing');
+        if (rightHandleEl) rightHandleEl.classList.remove('resizing');
 
         // 移除全局事件
         document.removeEventListener('mousemove', handleResize);
@@ -3383,7 +3421,7 @@ function stopResize() {
         document.removeEventListener('mouseleave', stopResize);
 
         // 保存宽度
-        saveArchitectWidths();
+        saveWorkspaceWidths();
         return;
     }
 
@@ -3428,6 +3466,52 @@ function saveArchitectWidths() {
         localStorage.setItem('architect_panel_widths', JSON.stringify(widths));
     } catch (error) {
         console.error('Failed to save architect panel widths:', error);
+    }
+}
+
+// 保存工作区模式宽度到 localStorage
+function saveWorkspaceWidths() {
+    try {
+        const controlPanel = document.getElementById('control-panel');
+        const resultPanel = document.querySelector('.result-panel');
+
+        const widths = {
+            left: controlPanel ? controlPanel.offsetWidth : 320,
+            right: resultPanel ? resultPanel.offsetWidth : 280
+        };
+
+        localStorage.setItem('workspace_panel_widths', JSON.stringify(widths));
+    } catch (error) {
+        console.error('Failed to save workspace panel widths:', error);
+    }
+}
+
+// 从 localStorage 加载工作区模式宽度
+function loadWorkspaceWidths() {
+    try {
+        const saved = localStorage.getItem('workspace_panel_widths');
+        if (!saved) return;
+
+        const widths = JSON.parse(saved);
+        const controlPanel = document.getElementById('control-panel');
+        const resultPanel = document.querySelector('.result-panel');
+
+        // 在任意工作区模式下应用保存的宽度
+        const isWorkspaceMode = document.getElementById('mode-sketch')?.classList.contains('active') ||
+                               document.getElementById('mode-style')?.classList.contains('active') ||
+                               document.getElementById('mode-mask')?.classList.contains('active') ||
+                               document.getElementById('mode-architect')?.classList.contains('active');
+
+        if (isWorkspaceMode) {
+            if (controlPanel && widths.left) {
+                controlPanel.style.width = `${Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(500, widths.left))}px`;
+            }
+            if (resultPanel && widths.right) {
+                resultPanel.style.width = `${Math.max(RESIZE_CONSTANTS.MIN_WIDTH, Math.min(600, widths.right))}px`;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load workspace panel widths:', error);
     }
 }
 
