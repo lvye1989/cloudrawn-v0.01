@@ -147,6 +147,16 @@ function cacheElements() {
     elements.homeQualityBtns = document.querySelectorAll('.home-quality-btn');
     elements.homeQuickBtns = document.querySelectorAll('.home-quick-btn');
 
+    // 智能增强Agent相关元素
+    elements.smartEnhanceBtn = document.getElementById('smart-enhance-btn');
+    elements.parameterConsole = document.getElementById('parameter-console');
+    elements.closeConsoleBtn = document.getElementById('close-console-btn');
+    elements.consoleAnalysis = document.getElementById('console-analysis');
+    elements.tagsContainer = document.getElementById('tags-container');
+    elements.generatedPrompt = document.getElementById('generated-prompt');
+    elements.confirmGenerateBtn = document.getElementById('confirm-generate-btn');
+    elements.reAnalyzeBtn = document.getElementById('re-analyze-btn');
+
     // 主页设置面板（中间栏高级设置）
     elements.homeApiKey = document.getElementById('home-api-key');
     elements.homeSaveApiKeyBtn = document.getElementById('home-save-api-key');
@@ -420,6 +430,20 @@ function bindEvents() {
     addListener(elements.homeApiKey, 'keypress', (e) => {
         if (e.key === 'Enter') saveHomeApiKey();
     });
+
+    // 智能增强Agent事件绑定
+    if (elements.smartEnhanceBtn) {
+        addListener(elements.smartEnhanceBtn, 'click', handleSmartEnhance);
+    }
+    if (elements.closeConsoleBtn) {
+        addListener(elements.closeConsoleBtn, 'click', hideParameterConsole);
+    }
+    if (elements.confirmGenerateBtn) {
+        addListener(elements.confirmGenerateBtn, 'click', handleConfirmGenerate);
+    }
+    if (elements.reAnalyzeBtn) {
+        addListener(elements.reAnalyzeBtn, 'click', handleReAnalyze);
+    }
 
     // 可折叠区域
     elements.collapsibleHeaders.forEach(header => {
@@ -3946,5 +3970,161 @@ async function handleArchitectGenerate() {
     } catch (error) {
         console.error('建筑大师生成失败:', error);
         updateArchitectStatus('生成失败: ' + error.message, 'error');
+    }
+}
+
+// ==================== 智能增强Agent工作流函数 ====================
+
+/**
+ * 处理智能增强按钮点击
+ */
+async function handleSmartEnhance() {
+    try {
+        const userInput = elements.homePrompt?.value.trim();
+        if (!userInput) {
+            updateHomeStatus('请输入描述内容', 'error');
+            return;
+        }
+
+        if (!state.apiKey) {
+            updateHomeStatus('请先设置API Key', 'error');
+            return;
+        }
+
+        // 显示加载状态
+        elements.smartEnhanceBtn.disabled = true;
+        elements.smartEnhanceBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+            <span>分析中...</span>
+        `;
+        updateHomeStatus('Agent正在分析您的需求...');
+
+        // 执行Agent工作流
+        const result = await AgentWorkflow.execute(userInput, state.apiKey);
+
+        // 存储当前结果用于后续操作
+        state.currentAgentResult = result;
+
+        // 显示参数控制台
+        showParameterConsole(result);
+        updateHomeStatus('分析完成，请确认参数');
+
+    } catch (error) {
+        console.error('智能增强失败:', error);
+        updateHomeStatus('分析失败: ' + error.message, 'error');
+    } finally {
+        // 恢复按钮状态
+        elements.smartEnhanceBtn.disabled = false;
+        elements.smartEnhanceBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+            </svg>
+            <span>智能增强</span>
+        `;
+    }
+}
+
+/**
+ * 显示参数控制台
+ */
+function showParameterConsole(result) {
+    if (!elements.parameterConsole) return;
+
+    // 显示分析结果
+    if (elements.consoleAnalysis) {
+        elements.consoleAnalysis.innerHTML = `
+            <div class="analysis-item">
+                <span class="analysis-label">主体:</span>
+                <span class="analysis-value">${result.structuredTags.subject || '未识别'}</span>
+            </div>
+            <div class="analysis-item">
+                <span class="analysis-label">光影:</span>
+                <span class="analysis-value">${result.structuredTags.time_lighting || '未识别'}</span>
+            </div>
+            <div class="analysis-item">
+                <span class="analysis-label">风格:</span>
+                <span class="analysis-value">${result.structuredTags.mood_style || '未识别'}</span>
+            </div>
+        `;
+    }
+
+    // 生成Tag标签
+    if (elements.tagsContainer) {
+        elements.tagsContainer.innerHTML = result.tags.map((tag, index) => `
+            <div class="param-tag" data-index="${index}">
+                <span class="tag-category">${tag.category}</span>
+                <span class="tag-value">${tag.value}</span>
+                <span class="tag-remove" onclick="removeTag(${index})">×</span>
+            </div>
+        `).join('');
+    }
+
+    // 显示生成的提示词
+    if (elements.generatedPrompt) {
+        elements.generatedPrompt.value = result.prompt;
+    }
+
+    // 显示控制台
+    elements.parameterConsole.classList.remove('hidden');
+}
+
+/**
+ * 隐藏参数控制台
+ */
+function hideParameterConsole() {
+    if (elements.parameterConsole) {
+        elements.parameterConsole.classList.add('hidden');
+    }
+}
+
+/**
+ * 移除Tag
+ */
+function removeTag(index) {
+    if (!state.currentAgentResult) return;
+
+    state.currentAgentResult.tags.splice(index, 1);
+    showParameterConsole(state.currentAgentResult);
+}
+
+/**
+ * 处理确认生成
+ */
+function handleConfirmGenerate() {
+    if (!state.currentAgentResult) return;
+
+    const finalPrompt = elements.generatedPrompt?.value || state.currentAgentResult.prompt;
+
+    // 将生成的提示词填入输入框
+    if (elements.homePrompt) {
+        elements.homePrompt.value = finalPrompt;
+    }
+
+    // 隐藏控制台
+    hideParameterConsole();
+
+    // 触发正常生成流程
+    handleHomeGenerate();
+}
+
+/**
+ * 处理重新分析
+ */
+async function handleReAnalyze() {
+    hideParameterConsole();
+    await handleSmartEnhance();
+}
+
+/**
+ * 更新主页状态
+ */
+function updateHomeStatus(message, type = '') {
+    if (elements.homeStatus) {
+        elements.homeStatus.textContent = message;
+        elements.homeStatus.className = 'home-status' + (type ? ' ' + type : '');
     }
 }

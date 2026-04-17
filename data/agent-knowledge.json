@@ -1,0 +1,193 @@
+{
+  "version": "1.0",
+  "description": "智能增强Agent参数知识库",
+  "lens_params": {
+    "architecture": {
+      "lens": "24mm tilt-shift lens",
+      "aperture": "f/11",
+      "tag": "建筑摄影"
+    },
+    "cityscape": {
+      "lens": "14mm ultra-wide angle",
+      "aperture": "f/11",
+      "view": "bird's-eye view",
+      "tag": "城市景观"
+    },
+    "portrait": {
+      "lens": "85mm lens",
+      "aperture": "f/1.4",
+      "effect": "shallow depth of field",
+      "tag": "人像特写"
+    },
+    "standard": {
+      "lens": "50mm lens",
+      "aperture": "f/2.8",
+      "tag": "标准视角"
+    },
+    "telephoto": {
+      "lens": "200mm telephoto lens",
+      "aperture": "f/4",
+      "tag": "长焦压缩"
+    }
+  },
+  "lighting_params": {
+    "golden_hour": {
+      "lighting": "Golden Hour",
+      "quality": "warm soft light",
+      "tag": "黄金时刻"
+    },
+    "blue_hour": {
+      "lighting": "Blue Hour",
+      "quality": "cool twilight ambiance",
+      "tag": "蓝调时刻"
+    },
+    "cinematic": {
+      "lighting": "cinematic lighting",
+      "effect": "volumetric light rays",
+      "tag": "电影光影"
+    },
+    "overcast": {
+      "lighting": "soft diffused light",
+      "quality": "even illumination",
+      "tag": "阴天柔光"
+    },
+    "dramatic": {
+      "lighting": "dramatic lighting",
+      "effect": "strong contrast",
+      "tag": "戏剧光影"
+    },
+    "night": {
+      "lighting": "night scene",
+      "effect": "artificial lighting glow",
+      "tag": "夜景灯光"
+    },
+    "sunset": {
+      "lighting": "sunset glow",
+      "quality": "orange warm tones",
+      "tag": "日落霞光"
+    },
+    "dawn": {
+      "lighting": "early morning light",
+      "quality": "soft misty atmosphere",
+      "tag": "黎明晨光"
+    }
+  },
+  "film_params": {
+    "realistic": {
+      "film": "Kodak Portra 400",
+      "quality": "8k resolution, hyper-realistic",
+      "tag": "真实胶片"
+    },
+    "vibrant": {
+      "film": "Fujifilm Velvia 50",
+      "quality": "high saturation, vivid colors",
+      "tag": "鲜艳反转片"
+    },
+    "cinematic": {
+      "film": "ARRI Alexa 65",
+      "quality": "cinematic color grading",
+      "tag": "电影机"
+    },
+    "cyberpunk": {
+      "film": "Cinestill 800T",
+      "effect": "red halation, high contrast",
+      "tag": "赛博朋克"
+    },
+    "render": {
+      "engine": "Unreal Engine 5",
+      "quality": "ray tracing, ultra detailed",
+      "tag": "UE5渲染"
+    }
+  },
+  "style_params": {
+    "minimalist": {
+      "style": "minimalist design",
+      "elements": "clean lines, geometric forms",
+      "tag": "极简风格"
+    },
+    "modern": {
+      "style": "modern architecture",
+      "elements": "glass and steel, contemporary",
+      "tag": "现代风格"
+    },
+    "classical": {
+      "style": "classical architecture",
+      "elements": "columns, ornate details, symmetry",
+      "tag": "古典风格"
+    },
+    "industrial": {
+      "style": "industrial design",
+      "elements": "exposed beams, raw materials",
+      "tag": "工业风格"
+    },
+    "organic": {
+      "style": "organic architecture",
+      "elements": "curved forms, nature-inspired",
+      "tag": "有机建筑"
+    },
+    "futuristic": {
+      "style": "futuristic design",
+      "elements": "innovative structures, sleek curves",
+      "tag": "未来风格"
+    }
+  },
+  "quality_modifiers": [
+    "masterpiece",
+    "best quality",
+    "highly detailed",
+    "professional photography",
+    "award winning",
+    "8k resolution",
+    "photorealistic"
+  ],
+  "mapping_rules": {
+    "scale_keywords": {
+      "宏大": "cityscape",
+      "城市": "cityscape",
+      "全景": "cityscape",
+      "鸟瞰": "cityscape",
+      "建筑": "architecture",
+      "室内": "architecture",
+      "空间": "architecture",
+      "人物": "portrait",
+      "特写": "portrait",
+      "头像": "portrait"
+    },
+    "time_keywords": {
+      "黄昏": "blue_hour",
+      "傍晚": "blue_hour",
+      "日落": "sunset",
+      "日出": "golden_hour",
+      "早晨": "golden_hour",
+      "黄金": "golden_hour",
+      "阴天": "overcast",
+      "雨天": "overcast",
+      "夜晚": "night",
+      "夜景": "night",
+      "电影": "cinematic",
+      "戏剧": "dramatic"
+    },
+    "style_keywords": {
+      "极简": "minimalist",
+      "简约": "minimalist",
+      "现代": "modern",
+      "古典": "classical",
+      "欧式": "classical",
+      "中式": "classical",
+      "工业": "industrial",
+      "自然": "organic",
+      "未来": "futuristic",
+      "科幻": "futuristic"
+    },
+    "mood_keywords": {
+      "真实": "realistic",
+      "写实": "realistic",
+      "鲜艳": "vibrant",
+      "饱和": "vibrant",
+      "电影": "cinematic",
+      "赛博": "cyberpunk",
+      "朋克": "cyberpunk",
+      "渲染": "render"
+    }
+  }
+}

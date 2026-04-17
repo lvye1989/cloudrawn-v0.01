@@ -22,7 +22,8 @@
     "web_accessible_resources": [
         {
             "resources": [
-                "icons/*"
+                "icons/*",
+                "data/*"
             ],
             "matches": [
                 "https://gemini.google.com/*",

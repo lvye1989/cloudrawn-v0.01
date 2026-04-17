@@ -2588,3 +2588,258 @@ body.resizing * {
         transform: translateY(0);
     }
 }
+
+/* ==================== 智能增强Agent样式 ==================== */
+
+/* 智能增强按钮 */
+.btn-smart-enhance {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px 20px;
+    border: 1px solid var(--accent-primary);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--accent-primary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-smart-enhance:hover {
+    background: rgba(139, 92, 246, 0.1);
+    transform: translateY(-1px);
+}
+
+.btn-smart-enhance:active {
+    transform: translateY(0);
+}
+
+.btn-smart-enhance:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-smart-enhance svg {
+    color: var(--accent-primary);
+}
+
+/* 参数控制台 */
+.parameter-console {
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    animation: fadeIn 0.3s ease;
+}
+
+.parameter-console.hidden {
+    display: none;
+}
+
+.console-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.console-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.console-title svg {
+    color: var(--accent-primary);
+}
+
+.console-close-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.console-close-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+/* 分析结果 */
+.console-analysis {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 10px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+}
+
+.analysis-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.analysis-label {
+    color: var(--text-muted);
+}
+
+.analysis-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* Tags容器 */
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+/* 参数Tag */
+.param-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--accent-primary);
+    color: white;
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.param-tag:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.tag-category {
+    opacity: 0.8;
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.tag-value {
+    font-weight: 500;
+}
+
+.tag-remove {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 11px;
+    line-height: 1;
+    transition: all 0.2s;
+}
+
+.tag-remove:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1);
+}
+
+/* 提示词预览 */
+.prompt-preview {
+    margin-bottom: 16px;
+}
+
+.prompt-preview label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.prompt-preview-text {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+}
+
+.prompt-preview-text:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+/* 控制台操作按钮 */
+.console-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.console-actions button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-confirm {
+    background: var(--accent-gradient);
+    color: white;
+}
+
+.btn-confirm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.console-actions .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.console-actions .btn-secondary:hover {
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
